@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
-function SignInPage() {
+function SignInInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = getSupabaseBrowserClient();
@@ -70,6 +70,14 @@ function SignInPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SignInPage() {
+  return (
+    <Suspense fallback={<div className="container py-16 text-center text-muted-foreground">Loading…</div>}>
+      <SignInInner />
+    </Suspense>
   );
 }
 
