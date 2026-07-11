@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import ImageUpload from '@/components/image-upload';
-import { ArrowLeft, Plus, Trash2, Save, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Users, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 
 function ManageEventPage({ params }) {
@@ -24,6 +24,7 @@ function ManageEventPage({ params }) {
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [signups, setSignups] = useState([]);
+  const [rsvps, setRsvps] = useState([]);
   const [profiles, setProfiles] = useState({});
   const [newTask, setNewTask] = useState({ title: '', description: '', volunteers_needed: 1 });
 
@@ -36,9 +37,13 @@ function ManageEventPage({ params }) {
       setTasks(ts || []);
       const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
       setSignups(sus || []);
-      if (sus?.length) {
-        const ids = [...new Set(sus.map((s) => s.profile_id))];
-        const { data: pfs } = await supabase.from('profiles').select('id, full_name, email').in('id', ids);
+      const { data: rs } = await supabase.from('event_rsvps').select('*').eq('event_id', id);
+      setRsvps(rs || []);
+      const allProfileIds = [
+        ...new Set([...(sus || []).map((s) => s.profile_id), ...(rs || []).map((r) => r.profile_id)]),
+      ];
+      if (allProfileIds.length) {
+        const { data: pfs } = await supabase.from('profiles').select('id, full_name, email').in('id', allProfileIds);
         const map = {};
         (pfs || []).forEach((p) => { map[p.id] = p; });
         setProfiles(map);
@@ -134,6 +139,30 @@ function ManageEventPage({ params }) {
             <div><Label>Volunteers needed</Label><Input type="number" min={1} value={newTask.volunteers_needed} onChange={(e) => setNewTask({ ...newTask, volunteers_needed: e.target.value })} className="w-32" /></div>
             <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> Add task</Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader><CardTitle className="flex items-center gap-2"><Heart className="w-5 h-5 text-rose-500 fill-current" /> Attendees ({rsvps.length})</CardTitle></CardHeader>
+        <CardContent>
+          {rsvps.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No RSVPs yet.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-2 text-sm">
+              {rsvps.map((r) => {
+                const p = profiles[r.profile_id];
+                return (
+                  <div key={r.id} className="flex items-center justify-between bg-muted/30 rounded px-3 py-2">
+                    <span>
+                      <span className="font-medium">{p?.full_name || 'Unknown'}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">{p?.email}</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d')}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

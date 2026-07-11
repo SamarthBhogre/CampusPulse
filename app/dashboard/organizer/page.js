@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Plus, Calendar, MapPin, Users, Trash2, Edit } from 'lucide-react';
+import { Plus, Calendar, MapPin, Users, Trash2, Edit, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 
 function OrganizerDashboard() {
@@ -30,7 +30,14 @@ function OrganizerDashboard() {
         .select('*, clubs(name), tasks(id), volunteer_signups(id)')
         .eq('created_by', user.id)
         .order('starts_at');
-      setEvents(ev || []);
+      // Fetch RSVP counts separately (resilient if table doesn't exist yet)
+      const eventIds = (ev || []).map((e) => e.id);
+      let rsvpMap = {};
+      if (eventIds.length) {
+        const { data: rs } = await supabase.from('event_rsvps').select('event_id').in('event_id', eventIds);
+        (rs || []).forEach((r) => { rsvpMap[r.event_id] = (rsvpMap[r.event_id] || 0) + 1; });
+      }
+      setEvents((ev || []).map((e) => ({ ...e, rsvp_count: rsvpMap[e.id] || 0 })));
     } catch (err) {
       console.error('Organizer dashboard load failed', err);
       toast.error(err?.message || 'Failed to load dashboard');
@@ -89,6 +96,7 @@ function OrganizerDashboard() {
                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {format(new Date(ev.starts_at), 'MMM d, yyyy • h:mm a')}</span>
                     {ev.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {ev.location}</span>}
                     <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {ev.volunteer_signups?.length || 0} volunteers • {ev.tasks?.length || 0} tasks</span>
+                    <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 fill-current text-rose-500" /> {ev.rsvp_count || 0} attending</span>
                   </div>
                 </div>
                 <div className="flex md:flex-col gap-2">

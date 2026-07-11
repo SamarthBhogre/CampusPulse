@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, MapPin, Search, X } from 'lucide-react';
+import { Calendar, MapPin, Search, X, Heart } from 'lucide-react';
 import { format, isAfter, addDays, startOfDay } from 'date-fns';
 
 function EventsPage() {
@@ -23,11 +23,16 @@ function EventsPage() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: ev }, { data: cl }] = await Promise.all([
+      const [{ data: ev }, { data: cl }, rsvpRes] = await Promise.all([
         supabase.from('events').select('*, clubs(id, name), tasks(id, volunteers_needed), volunteer_signups(id)').order('starts_at', { ascending: true }),
         supabase.from('clubs').select('*').order('name'),
+        supabase.from('event_rsvps').select('id, event_id'),
       ]);
-      setEvents(ev || []);
+      const rsvpsByEvent = {};
+      (rsvpRes?.data || []).forEach((r) => {
+        rsvpsByEvent[r.event_id] = (rsvpsByEvent[r.event_id] || 0) + 1;
+      });
+      setEvents((ev || []).map((e) => ({ ...e, rsvp_count: rsvpsByEvent[e.id] || 0 })));
       setClubs(cl || []);
       setLoading(false);
     })();
@@ -126,11 +131,14 @@ function EventsPage() {
                       {ev.location && <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> {ev.location}</div>}
                     </div>
                     {totalNeeded > 0 && (
-                      <div className="mt-4 text-xs font-medium">
+                      <div className="mt-4 text-xs font-medium flex items-center gap-3">
                         {openSlots > 0 ? (
                           <span className="text-primary">{openSlots} volunteer slot{openSlots > 1 ? 's' : ''} open</span>
                         ) : (
                           <span className="text-muted-foreground">All slots filled</span>
+                        )}
+                        {ev.rsvp_count > 0 && (
+                          <span className="text-muted-foreground flex items-center gap-1"><Heart className="w-3 h-3 fill-current text-rose-500" />{ev.rsvp_count}</span>
                         )}
                       </div>
                     )}

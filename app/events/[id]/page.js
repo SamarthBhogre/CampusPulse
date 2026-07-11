@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, MapPin, Users, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Users, ArrowLeft, CheckCircle2, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 
@@ -18,9 +18,11 @@ function EventDetailPage({ params }) {
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [signups, setSignups] = useState([]);
+  const [rsvps, setRsvps] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState(null);
+  const [rsvpBusy, setRsvpBusy] = useState(false);
 
   async function load() {
     try {
@@ -32,6 +34,8 @@ function EventDetailPage({ params }) {
       setTasks(ts || []);
       const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
       setSignups(sus || []);
+      const { data: rs } = await supabase.from('event_rsvps').select('*').eq('event_id', id);
+      setRsvps(rs || []);
     } catch (err) {
       console.error('Event detail load failed', err);
       toast.error(err?.message || 'Failed to load event');
@@ -42,16 +46,35 @@ function EventDetailPage({ params }) {
 
   useEffect(() => { load(); }, [id]);
 
-  async function volunteer(taskId) {
-    if (!user) {
-      toast.error('Please sign in to volunteer');
-      router.push('/auth/sign-in');
-      return;
+  const myRsvp = user ? rsvps.find((r) => r.profile_id === user.id) : null;
+
+  async function toggleRsvp() {
+    if (!user) { toast.error('Please sign in to RSVP'); router.push('/auth/sign-in'); return; }
+    setRsvpBusy(true);
+    try {
+      if (myRsvp) {
+        const { error } = await supabase.from('event_rsvps').delete().eq('id', myRsvp.id);
+        if (error) throw error;
+        toast.success('RSVP removed');
+      } else {
+        const { error } = await supabase.from('event_rsvps').insert({ event_id: id, profile_id: user.id });
+        if (error) throw error;
+        toast.success('You\'re attending! 🎉');
+      }
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRsvpBusy(false);
     }
+  }
+
+  async function volunteer(taskId) {
+    if (!user) { toast.error('Please sign in to volunteer'); router.push('/auth/sign-in'); return; }
     setActionId(taskId);
     const { error } = await supabase.from('volunteer_signups').insert({ task_id: taskId, event_id: id, profile_id: user.id });
     if (error) toast.error(error.message);
-    else { toast.success('You\'re signed up! 🎉'); await load(); }
+    else { toast.success('You\'re signed up!'); await load(); }
     setActionId(null);
   }
 
@@ -87,11 +110,30 @@ function EventDetailPage({ params }) {
       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
         <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {format(new Date(event.starts_at), 'PPP • p')}</div>
         {event.location && <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {event.location}</div>}
+        <div className="flex items-center gap-2"><Heart className="w-4 h-4" /> {rsvps.length} attending</div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-8">
+        <Button
+          onClick={toggleRsvp}
+          disabled={rsvpBusy}
+          variant={myRsvp ? 'secondary' : 'default'}
+          size="lg"
+          className="gap-2"
+        >
+          <Heart className={`w-4 h-4 ${myRsvp ? 'fill-current' : ''}`} />
+          {rsvpBusy ? 'Saving…' : myRsvp ? 'You’re attending' : 'I’ll be there'}
+        </Button>
+        {tasks.length > 0 && (
+          <a href="#tasks" className="inline-flex">
+            <Button variant="outline" size="lg">See volunteer tasks ↓</Button>
+          </a>
+        )}
       </div>
 
       <p className="text-lg text-muted-foreground leading-relaxed mb-10 whitespace-pre-line">{event.description}</p>
 
-      <h2 className="text-2xl font-bold mb-4">Volunteer Tasks</h2>
+      <h2 id="tasks" className="text-2xl font-bold mb-4">Volunteer Tasks</h2>
       {tasks.length === 0 ? (
         <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks posted yet.</CardContent></Card>
       ) : (
