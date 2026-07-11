@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import ImageUpload from '@/components/image-upload';
 import { ArrowLeft, Plus, Trash2, Save, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -112,7 +113,7 @@ function ManageEventPage({ params }) {
               <div><Label>Starts</Label><Input type="datetime-local" value={event.starts_at_local} onChange={(e) => setEvent({ ...event, starts_at_local: e.target.value })} /></div>
               <div><Label>Ends</Label><Input type="datetime-local" value={event.ends_at_local} onChange={(e) => setEvent({ ...event, ends_at_local: e.target.value })} /></div>
             </div>
-            <div><Label>Cover image URL</Label><Input value={event.cover_image || ''} onChange={(e) => setEvent({ ...event, cover_image: e.target.value })} /></div>
+            <div><Label>Cover image</Label><ImageUpload value={event.cover_image} onChange={(url) => setEvent({ ...event, cover_image: url })} /></div>
             <Button type="submit" disabled={saving} className="gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}</Button>
           </form>
         </CardContent>

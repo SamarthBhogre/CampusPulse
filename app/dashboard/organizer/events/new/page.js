@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import ImageUpload from '@/components/image-upload';
 
 function NewEventPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ function NewEventPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', location: '', starts_at: '', ends_at: '',
-    cover_image: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800', club_id: '',
+    cover_image: '', club_id: '',
   });
 
   useEffect(() => {
@@ -90,8 +91,8 @@ function NewEventPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cover">Cover image URL</Label>
-              <Input id="cover" value={form.cover_image} onChange={(e) => setForm({ ...form, cover_image: e.target.value })} />
+              <Label htmlFor="cover">Cover image</Label>
+              <ImageUpload value={form.cover_image} onChange={(url) => setForm({ ...form, cover_image: url })} />
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>{loading ? 'Creating…' : 'Create event'}</Button>

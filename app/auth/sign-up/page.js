@@ -10,23 +10,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { GraduationCap, Megaphone } from 'lucide-react';
+import { GraduationCap, Megaphone, MailCheck, ArrowLeft } from 'lucide-react';
 
 function SignUpPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [form, setForm] = useState({ full_name: '', email: '', password: '', role: 'student' });
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
+      const emailRedirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
       const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
           data: { full_name: form.full_name, role: form.role },
+          emailRedirectTo,
         },
       });
       if (error) throw error;
@@ -35,14 +38,35 @@ function SignUpPage() {
         router.push('/dashboard');
         router.refresh();
       } else {
-        toast.success('Account created! Check your email to confirm, then sign in.');
-        router.push('/auth/sign-in');
+        setEmailSent(true);
       }
     } catch (err) {
       toast.error(err.message || 'Sign-up failed');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="container max-w-md py-16">
+        <Card>
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <MailCheck className="w-7 h-7 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Check your inbox</h2>
+            <p className="text-muted-foreground mb-6">
+              We’ve sent a confirmation link to <span className="font-medium text-foreground">{form.email}</span>.
+              Click it to activate your account.
+            </p>
+            <Link href="/auth/sign-in" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+              <ArrowLeft className="w-4 h-4" /> Back to sign in
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
