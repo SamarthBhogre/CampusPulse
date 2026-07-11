@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import ImageUpload from '@/components/image-upload';
-import { ArrowLeft, Plus, Trash2, Save, Users, Heart } from 'lucide-react';
+import { downloadCSV } from '@/lib/csv';
+import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
 function ManageEventPage({ params }) {
@@ -111,7 +112,47 @@ function ManageEventPage({ params }) {
         <ArrowLeft className="w-4 h-4" /> Back to dashboard
       </Link>
 
-      <h1 className="text-3xl font-bold mb-6">Manage event</h1>
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <h1 className="text-3xl font-bold">Manage event</h1>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const rows = signups.map((s) => {
+                const p = profiles[s.profile_id];
+                const t = tasks.find((tt) => tt.id === s.task_id);
+                return {
+                  name: p?.full_name || '',
+                  email: p?.email || '',
+                  task: t?.title || '',
+                  signed_up_at: s.signed_up_at,
+                };
+              });
+              if (!rows.length) { toast.error('No volunteers yet'); return; }
+              downloadCSV(rows, `${event.title.replace(/\s+/g, '_')}_volunteers.csv`);
+            }}
+          ><Download className="w-4 h-4" /> Volunteers CSV</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const rows = rsvps.map((r) => {
+                const p = profiles[r.profile_id];
+                return {
+                  name: p?.full_name || '',
+                  email: p?.email || '',
+                  rsvp_date: r.created_at,
+                };
+              });
+              if (!rows.length) { toast.error('No RSVPs yet'); return; }
+              downloadCSV(rows, `${event.title.replace(/\s+/g, '_')}_attendees.csv`);
+            }}
+          ><Download className="w-4 h-4" /> Attendees CSV</Button>
+        </div>
+      </div>
 
       <Card className="mb-6">
         <CardHeader><CardTitle>Event details</CardTitle></CardHeader>

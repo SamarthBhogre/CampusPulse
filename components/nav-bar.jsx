@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Sparkles, LogOut, LayoutDashboard, CalendarRange } from 'lucide-react';
+import ThemeToggle from '@/components/theme-toggle';
 
 export default function NavBar() {
   const [user, setUser] = useState(null);
@@ -52,6 +53,7 @@ export default function NavBar() {
           <span>Campus Pulse</span>
         </Link>
         <nav className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/events">
             <Button variant="ghost" size="sm" className="gap-2">
               <CalendarRange className="w-4 h-4" /> Events
