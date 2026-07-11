@@ -19,23 +19,28 @@ function DashboardPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/auth/sign-in'); return; }
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-      if (!p) { setLoading(false); return; }
-      setProfile(p);
-      if (p.role === 'organizer') {
-        router.replace('/dashboard/organizer');
-        return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { router.push('/auth/sign-in'); return; }
+        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (!p) { return; }
+        setProfile(p);
+        if (p.role === 'organizer') {
+          router.replace('/dashboard/organizer');
+          return;
+        }
+        // Student: my volunteered events
+        const { data: signups } = await supabase
+          .from('volunteer_signups')
+          .select('id, signed_up_at, tasks(title), events(id, title, starts_at, location, cover_image, clubs(name))')
+          .eq('profile_id', user.id)
+          .order('signed_up_at', { ascending: false });
+        setItems(signups || []);
+      } catch (err) {
+        console.error('Student dashboard load failed', err);
+      } finally {
+        setLoading(false);
       }
-      // Student: my volunteered events
-      const { data: signups } = await supabase
-        .from('volunteer_signups')
-        .select('id, signed_up_at, tasks(title), events(id, title, starts_at, location, cover_image, clubs(name))')
-        .eq('profile_id', user.id)
-        .order('signed_up_at', { ascending: false });
-      setItems(signups || []);
-      setLoading(false);
     })();
   }, [supabase, router]);
 

@@ -23,15 +23,21 @@ function EventDetailPage({ params }) {
   const [actionId, setActionId] = useState(null);
 
   async function load() {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-    const { data: ev } = await supabase.from('events').select('*, clubs(name), profiles!events_created_by_fkey(full_name)').eq('id', id).maybeSingle();
-    setEvent(ev);
-    const { data: ts } = await supabase.from('tasks').select('*').eq('event_id', id).order('created_at');
-    setTasks(ts || []);
-    const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
-    setSignups(sus || []);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      const { data: ev } = await supabase.from('events').select('*, clubs(name), profiles!events_created_by_fkey(full_name)').eq('id', id).maybeSingle();
+      setEvent(ev);
+      const { data: ts } = await supabase.from('tasks').select('*').eq('event_id', id).order('created_at');
+      setTasks(ts || []);
+      const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
+      setSignups(sus || []);
+    } catch (err) {
+      console.error('Event detail load failed', err);
+      toast.error(err?.message || 'Failed to load event');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, [id]);

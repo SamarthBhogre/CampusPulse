@@ -28,21 +28,27 @@ function ManageEventPage({ params }) {
   const [newTask, setNewTask] = useState({ title: '', description: '', volunteers_needed: 1 });
 
   async function load() {
-    const { data: ev } = await supabase.from('events').select('*, clubs(name)').eq('id', id).maybeSingle();
-    if (!ev) { toast.error('Event not found'); router.push('/dashboard/organizer'); return; }
-    setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: ev.ends_at ? toLocal(ev.ends_at) : '' });
-    const { data: ts } = await supabase.from('tasks').select('*').eq('event_id', id).order('created_at');
-    setTasks(ts || []);
-    const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
-    setSignups(sus || []);
-    if (sus?.length) {
-      const ids = [...new Set(sus.map((s) => s.profile_id))];
-      const { data: pfs } = await supabase.from('profiles').select('id, full_name, email').in('id', ids);
-      const map = {};
-      (pfs || []).forEach((p) => { map[p.id] = p; });
-      setProfiles(map);
+    try {
+      const { data: ev } = await supabase.from('events').select('*, clubs(name)').eq('id', id).maybeSingle();
+      if (!ev) { toast.error('Event not found'); router.push('/dashboard/organizer'); return; }
+      setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: ev.ends_at ? toLocal(ev.ends_at) : '' });
+      const { data: ts } = await supabase.from('tasks').select('*').eq('event_id', id).order('created_at');
+      setTasks(ts || []);
+      const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
+      setSignups(sus || []);
+      if (sus?.length) {
+        const ids = [...new Set(sus.map((s) => s.profile_id))];
+        const { data: pfs } = await supabase.from('profiles').select('id, full_name, email').in('id', ids);
+        const map = {};
+        (pfs || []).forEach((p) => { map[p.id] = p; });
+        setProfiles(map);
+      }
+    } catch (err) {
+      console.error('Manage event load failed', err);
+      toast.error(err?.message || 'Failed to load event');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => { load(); }, [id]);

@@ -19,18 +19,24 @@ function OrganizerDashboard() {
   const [user, setUser] = useState(null);
 
   async function load() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push('/auth/sign-in'); return; }
-    setUser(user);
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-    if (p?.role !== 'organizer') { router.replace('/dashboard'); return; }
-    const { data: ev } = await supabase
-      .from('events')
-      .select('*, clubs(name), tasks(id), volunteer_signups(id)')
-      .eq('created_by', user.id)
-      .order('starts_at');
-    setEvents(ev || []);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/auth/sign-in'); return; }
+      setUser(user);
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      if (p?.role !== 'organizer') { router.replace('/dashboard'); return; }
+      const { data: ev } = await supabase
+        .from('events')
+        .select('*, clubs(name), tasks(id), volunteer_signups(id)')
+        .eq('created_by', user.id)
+        .order('starts_at');
+      setEvents(ev || []);
+    } catch (err) {
+      console.error('Organizer dashboard load failed', err);
+      toast.error(err?.message || 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
