@@ -73,6 +73,7 @@ function ManageEventPage({ params }) {
       description: event.description,
       location: event.location,
       cover_image: event.cover_image,
+      visibility: event.visibility || 'public',
       starts_at: new Date(event.starts_at_local).toISOString(),
       ends_at: event.ends_at_local ? new Date(event.ends_at_local).toISOString() : null,
       updated_at: new Date().toISOString(),
@@ -166,6 +167,19 @@ function ManageEventPage({ params }) {
               <div><Label>Ends</Label><Input type="datetime-local" value={event.ends_at_local} onChange={(e) => setEvent({ ...event, ends_at_local: e.target.value })} /></div>
             </div>
             <div><Label>Cover image</Label><ImageUpload value={event.cover_image} onChange={(url) => setEvent({ ...event, cover_image: url })} /></div>
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${(event.visibility || 'public') === 'public' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <input type="radio" name="edit-vis" value="public" checked={(event.visibility || 'public') === 'public'} onChange={() => setEvent({ ...event, visibility: 'public' })} className="mt-1" />
+                  <div><div className="font-medium text-sm">Public</div><div className="text-xs text-muted-foreground">Anyone can see.</div></div>
+                </label>
+                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${event.visibility === 'club_only' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <input type="radio" name="edit-vis" value="club_only" checked={event.visibility === 'club_only'} onChange={() => setEvent({ ...event, visibility: 'club_only' })} className="mt-1" />
+                  <div><div className="font-medium text-sm">Club only</div><div className="text-xs text-muted-foreground">Members only.</div></div>
+                </label>
+              </div>
+            </div>
             <Button type="submit" disabled={saving} className="gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}</Button>
           </form>
         </CardContent>

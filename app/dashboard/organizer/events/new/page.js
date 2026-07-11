@@ -19,7 +19,7 @@ function NewEventPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', location: '', starts_at: '', ends_at: '',
-    cover_image: '', club_id: '',
+    cover_image: '', club_id: '', visibility: 'public',
   });
 
   useEffect(() => {
@@ -40,9 +40,15 @@ function NewEventPage() {
         ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
         cover_image: form.cover_image || null,
         club_id: form.club_id || null,
+        visibility: form.visibility,
         created_by: user.id,
       };
-      const { data, error } = await supabase.from('events').insert(payload).select().single();
+      let { data, error } = await supabase.from('events').insert(payload).select().single();
+      if (error && error.code === '42703') {
+        // visibility column doesn't exist yet - retry without it
+        delete payload.visibility;
+        ({ data, error } = await supabase.from('events').insert(payload).select().single());
+      }
       if (error) throw error;
       toast.success('Event created!');
       router.push(`/dashboard/organizer/events/${data.id}`);
@@ -88,6 +94,25 @@ function NewEventPage() {
               <div className="space-y-2">
                 <Label htmlFor="end">Ends</Label>
                 <Input id="end" type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition ${form.visibility === 'public' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <input type="radio" name="visibility" value="public" checked={form.visibility === 'public'} onChange={() => setForm({ ...form, visibility: 'public' })} className="mt-1" />
+                  <div>
+                    <div className="font-medium text-sm">Public</div>
+                    <div className="text-xs text-muted-foreground">Anyone can see and RSVP.</div>
+                  </div>
+                </label>
+                <label className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition ${form.visibility === 'club_only' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <input type="radio" name="visibility" value="club_only" checked={form.visibility === 'club_only'} onChange={() => setForm({ ...form, visibility: 'club_only' })} className="mt-1" />
+                  <div>
+                    <div className="font-medium text-sm">Club only</div>
+                    <div className="text-xs text-muted-foreground">Only club members can see this event.</div>
+                  </div>
+                </label>
               </div>
             </div>
             <div className="space-y-2">

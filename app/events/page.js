@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, MapPin, Search, X, Heart } from 'lucide-react';
+import { Calendar, MapPin, Search, X, Heart, Lock } from 'lucide-react';
 import { format, isAfter, addDays, startOfDay } from 'date-fns';
 
 function EventsPage() {
@@ -121,6 +121,9 @@ function EventsPage() {
                     )}
                     {ev.clubs?.name && (
                       <Badge className="absolute top-3 left-3" variant="secondary">{ev.clubs.name}</Badge>
+                    )}
+                    {ev.visibility === 'club_only' && (
+                      <Badge className="absolute top-3 right-3 gap-1" variant="default"><Lock className="w-3 h-3" /> Club only</Badge>
                     )}
                   </div>
                   <CardContent className="p-5">

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, MapPin, Users, ArrowLeft, CheckCircle2, Heart } from 'lucide-react';
+import { Calendar, MapPin, Users, ArrowLeft, CheckCircle2, Heart, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 
@@ -102,6 +102,7 @@ function EventDetailPage({ params }) {
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {event.clubs?.name && <Badge variant="secondary">{event.clubs.name}</Badge>}
+        {event.visibility === 'club_only' && <Badge variant="default" className="gap-1"><Lock className="w-3 h-3" /> Club only</Badge>}
         <span className="text-sm text-muted-foreground">Organized by {event.profiles?.full_name || 'Campus Pulse'}</span>
       </div>
 
