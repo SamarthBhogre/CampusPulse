@@ -58,8 +58,26 @@ yarn dev
    - Site URL: your Vercel origin, for example `https://campus-pulse-sable.vercel.app`
    - Redirect URLs:
      - `https://campus-pulse-sable.vercel.app/auth/callback`
+     - `https://campus-pulse-sable.vercel.app/auth/confirm`
      - `http://localhost:3000/auth/callback` for local development
+     - `http://localhost:3000/auth/confirm` for local development
    - Remove old Emergent preview URLs unless you still intentionally use them.
+
+### Supabase email templates
+
+For reliable email confirmation across browsers/devices, use the `token_hash` confirmation route instead of the PKCE callback URL.
+
+In Supabase **Authentication -> Email Templates -> Confirm signup**, set the confirmation link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard">Confirm your email</a>
+```
+
+In **Reset password**, set the reset link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password">Reset your password</a>
+```
 
 ## Approve organizer access
 

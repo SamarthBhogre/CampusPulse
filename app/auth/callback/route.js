@@ -33,8 +33,11 @@ export async function GET(request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
-    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent(error.message)}`);
+    const message = error.message?.includes('code verifier')
+      ? 'This email link was opened without its original verification session. Please request a fresh confirmation or reset email and open the newest link.'
+      : error.message;
+    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent(message)}`);
   }
 
-  return NextResponse.redirect(`${origin}/auth/sign-in`);
+  return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent('Confirmation link is incomplete or expired. Please request a fresh email.')}`);
 }
