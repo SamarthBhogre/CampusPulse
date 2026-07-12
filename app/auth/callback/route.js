@@ -5,7 +5,10 @@ import { cookies } from 'next/headers';
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const requestedNext = searchParams.get('next') ?? '/dashboard';
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//')
+    ? requestedNext
+    : '/dashboard';
   const errorDescription = searchParams.get('error_description');
 
   if (errorDescription) {

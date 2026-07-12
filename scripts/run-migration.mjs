@@ -1,6 +1,28 @@
 import fs from 'node:fs';
 import pg from 'pg';
 
+function loadDotEnvLocal() {
+  if (!fs.existsSync('.env.local')) return;
+  const lines = fs.readFileSync('.env.local', 'utf-8').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadDotEnvLocal();
+
 const [file] = process.argv.slice(2);
 if (!file) { console.error('usage: node run-migration.mjs <file.sql>'); process.exit(1); }
 const sql = fs.readFileSync(file, 'utf-8');
@@ -21,11 +43,14 @@ const password = process.env.SUPABASE_DB_PASSWORD;
 if (!password) { console.error('Set SUPABASE_DB_PASSWORD env'); process.exit(1); }
 
 const configs = [
-  `postgresql://postgres:${encodeURIComponent(password)}@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`,
+  `postgresql://postgres:${encodeURIComponent(password)}@db.${projectRef}.supabase.co:5432/postgres`,
 ];
 for (const conn of configs) {
   try {
-    const client = new pg.Client({ connectionString: conn });
+    const client = new pg.Client({
+      connectionString: conn,
+      ssl: { rejectUnauthorized: false },
+    });
     await client.connect();
     console.log('Connected via', conn.replace(/:[^:@]+@/, ':***@'));
     await client.query(sql);

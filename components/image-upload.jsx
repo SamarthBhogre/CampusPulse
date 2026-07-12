@@ -14,13 +14,21 @@ export default function ImageUpload({ value, onChange }) {
 
   async function upload(file) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) return toast.error('Please choose an image file');
+    const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
+    if (!allowedTypes.has(file.type)) return toast.error('Please choose a PNG, JPG, WEBP, or GIF image');
     if (file.size > 5 * 1024 * 1024) return toast.error('File must be under 5 MB');
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be signed in');
-      const ext = file.name.split('.').pop() || 'jpg';
+      const extByType = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+      };
+      const ext = extByType[file.type] || 'jpg';
       const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage.from('event-covers').upload(path, file, {
         cacheControl: '3600', upsert: false, contentType: file.type,

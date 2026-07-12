@@ -36,6 +36,11 @@ yarn dev
    - `supabase/schema.sql`
    - `supabase/migrations/002_add_rsvps.sql`
    - `supabase/migrations/003_club_membership_visibility.sql`
+   - `supabase/migrations/004_production_hardening.sql`
+   - `supabase/migrations/005_auth_role_hardening.sql`
+   - `supabase/migrations/006_organizer_access_requests.sql`
+   - `supabase/migrations/007_admin_role.sql`
+   - If 006/007 fail because of a partial previous attempt, run `supabase/migrations/006_007_admin_setup_combined.sql` instead.
 4. Create the `event-covers` Storage bucket (public, 5 MB limit) - or run `node scripts/setup-storage.mjs`
 5. In **Authentication -> URL Configuration**, add your app URL to Site URL and Redirect URLs (`.../auth/callback`)
 
@@ -47,4 +52,41 @@ yarn dev
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy. Then update Supabase Auth URL Configuration with the new Vercel URL.
+   - `NEXT_PUBLIC_APP_URL` = your production app origin, for example `https://campus-pulse-sable.vercel.app`
+   - Optional: `CORS_ORIGINS` if another trusted origin must call this deployment directly
+4. Deploy. Then update Supabase **Authentication -> URL Configuration**:
+   - Site URL: your Vercel origin, for example `https://campus-pulse-sable.vercel.app`
+   - Redirect URLs:
+     - `https://campus-pulse-sable.vercel.app/auth/callback`
+     - `http://localhost:3000/auth/callback` for local development
+   - Remove old Emergent preview URLs unless you still intentionally use them.
+
+## Approve organizer access
+
+Admins can sign in from `/admin/sign-in` and review requests at `/admin/dashboard`.
+
+Create the first admin by signing up normally, confirming the email, then running:
+
+```sql
+update public.profiles
+set role = 'admin'
+where email = 'admin@campus.edu';
+```
+
+Organizer signup creates a pending request but does not grant organizer privileges automatically.
+
+```sql
+select id, email, full_name, organizer_requested_at
+from public.profiles
+where organizer_request_status = 'pending'
+order by organizer_requested_at;
+```
+
+Approve a verified organizer:
+
+```sql
+update public.profiles
+set role = 'organizer',
+    organizer_request_status = 'approved'
+where email = 'organizer@campus.edu';
+```

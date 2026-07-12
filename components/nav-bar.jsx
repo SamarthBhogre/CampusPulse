@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { ensureCurrentProfile } from '@/lib/profile';
 import { Sparkles, LogOut, LayoutDashboard, CalendarRange, Users } from 'lucide-react';
 import ThemeToggle from '@/components/theme-toggle';
 
@@ -17,23 +18,34 @@ export default function NavBar() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(async ({ data }) => {
+
+    async function loadProfile(sessionUser) {
       if (!mounted) return;
-      setUser(data.user);
-      if (data.user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
-        setProfile(p);
-      }
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-        setProfile(p);
-      } else {
+      setUser(sessionUser);
+      if (!sessionUser) {
         setProfile(null);
+        return;
       }
+
+      try {
+        const repairedProfile = await ensureCurrentProfile();
+        if (mounted) setProfile(repairedProfile);
+      } catch (err) {
+        console.error('Profile load failed', err);
+        if (mounted) {
+          setProfile({
+            full_name: sessionUser.user_metadata?.full_name || sessionUser.email,
+            role: null,
+          });
+        }
+      }
+    }
+
+    supabase.auth.getUser().then(({ data }) => loadProfile(data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      await loadProfile(session?.user ?? null);
     });
+
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, [supabase, pathname]);
 
@@ -41,6 +53,12 @@ export default function NavBar() {
     await supabase.auth.signOut();
     router.push('/');
     router.refresh();
+  }
+
+  const dashboardHref = profile?.role === 'organizer' ? '/dashboard/organizer' : '/dashboard';
+
+  if (pathname?.startsWith('/admin')) {
+    return null;
   }
 
   return (
@@ -66,7 +84,7 @@ export default function NavBar() {
           </Link>
           {user ? (
             <>
-              <Link href="/dashboard">
+              <Link href={dashboardHref}>
                 <Button variant="ghost" size="sm" className="gap-2">
                   <LayoutDashboard className="w-4 h-4" /> Dashboard
                 </Button>

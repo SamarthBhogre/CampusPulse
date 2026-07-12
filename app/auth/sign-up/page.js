@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getAuthRedirectUrl } from '@/lib/app-url';
 import { GraduationCap, Megaphone, MailCheck, ArrowLeft } from 'lucide-react';
 
 function SignUpPage() {
@@ -17,18 +17,21 @@ function SignUpPage() {
   const supabase = getSupabaseBrowserClient();
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', role: 'student' });
+  const [form, setForm] = useState({ full_name: '', email: '', password: '', account_type: 'student' });
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
-      const emailRedirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const emailRedirectTo = getAuthRedirectUrl('/dashboard');
       const { data, error } = await supabase.auth.signUp({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         options: {
-          data: { full_name: form.full_name, role: form.role },
+          data: {
+            full_name: form.full_name.trim(),
+            requested_role: form.account_type,
+          },
           emailRedirectTo,
         },
       });
@@ -57,7 +60,7 @@ function SignUpPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Check your inbox</h2>
             <p className="text-muted-foreground mb-6">
-              We’ve sent a confirmation link to <span className="font-medium text-foreground">{form.email}</span>.
+              We sent a confirmation link to <span className="font-medium text-foreground">{form.email}</span>.
               Click it to activate your account.
             </p>
             <Link href="/auth/sign-in" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
@@ -88,25 +91,42 @@ function SignUpPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 6 characters" />
+              <Input id="password" type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters" />
             </div>
             <div className="space-y-2">
-              <Label>I am a…</Label>
-              <RadioGroup value={form.role} onValueChange={(v) => setForm({ ...form, role: v })} className="grid grid-cols-2 gap-3">
-                <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition ${form.role === 'student' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                  <RadioGroupItem value="student" />
-                  <GraduationCap className="w-4 h-4" />
-                  <span className="text-sm font-medium">Student</span>
-                </label>
-                <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition ${form.role === 'organizer' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                  <RadioGroupItem value="organizer" />
-                  <Megaphone className="w-4 h-4" />
-                  <span className="text-sm font-medium">Organizer</span>
-                </label>
-              </RadioGroup>
+              <Label>Account type</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, account_type: 'student' })}
+                  className={`flex items-start gap-3 rounded-lg border p-4 text-left transition ${form.account_type === 'student' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                >
+                  <GraduationCap className="w-5 h-5 text-primary mt-0.5" />
+                  <span>
+                    <span className="block text-sm font-medium">Student</span>
+                    <span className="block text-xs text-muted-foreground mt-1">Browse, RSVP, and volunteer.</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, account_type: 'organizer' })}
+                  className={`flex items-start gap-3 rounded-lg border p-4 text-left transition ${form.account_type === 'organizer' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                >
+                  <Megaphone className="w-5 h-5 text-primary mt-0.5" />
+                  <span>
+                    <span className="block text-sm font-medium">Organizer</span>
+                    <span className="block text-xs text-muted-foreground mt-1">Request event management access.</span>
+                  </span>
+                </button>
+              </div>
+              {form.account_type === 'organizer' && (
+                <p className="text-xs text-muted-foreground">
+                  Organizer access needs admin approval after signup. Your account starts safely as a student.
+                </p>
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating account…' : 'Create account'}
+              {loading ? 'Creating account...' : 'Create account'}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Already have an account? <Link href="/auth/sign-in" className="text-primary hover:underline">Sign in</Link>

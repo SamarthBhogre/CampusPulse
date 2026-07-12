@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, MapPin, ArrowRight, CalendarPlus, Heart, ClipboardList } from 'lucide-react';
+import { ensureCurrentProfile } from '@/lib/profile';
+import { Calendar, MapPin, ArrowRight, Heart, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 
 function DashboardPage() {
@@ -17,40 +18,71 @@ function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [volunteering, setVolunteering] = useState([]);
   const [attending, setAttending] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push('/auth/sign-in'); return; }
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-        if (!p) { return; }
+        if (!user) {
+          router.push('/auth/sign-in');
+          return;
+        }
+
+        const p = await ensureCurrentProfile();
+        if (cancelled) return;
         setProfile(p);
-        if (p.role === 'organizer') { router.replace('/dashboard/organizer'); return; }
+
+        if (p.role === 'organizer') {
+          router.replace('/dashboard/organizer');
+          return;
+        }
 
         const [{ data: signups }, { data: rsvps }] = await Promise.all([
           supabase
             .from('volunteer_signups')
             .select('id, signed_up_at, tasks(title), events(id, title, starts_at, location, cover_image, clubs(name))')
             .eq('profile_id', user.id)
-            .order('signed_up_at', { ascending: false }),
+            .order('signed_up_at', { ascending: false })
+            .limit(50),
           supabase
             .from('event_rsvps')
             .select('id, created_at, events(id, title, starts_at, location, cover_image, clubs(name))')
             .eq('profile_id', user.id)
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(50),
         ]);
-        setVolunteering(signups || []);
-        setAttending(rsvps || []);
+
+        if (!cancelled) {
+          setVolunteering(signups || []);
+          setAttending(rsvps || []);
+        }
       } catch (err) {
         console.error('Student dashboard load failed', err);
+        if (!cancelled) setError(err?.message || 'Dashboard failed to load');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => { cancelled = true; };
   }, [supabase, router]);
 
-  if (loading) return <div className="container py-16 text-center text-muted-foreground">Loading…</div>;
+  if (loading) {
+    return <div className="container py-16 text-center text-muted-foreground">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="container py-16 max-w-lg text-center">
+        <h1 className="text-2xl font-bold mb-2">Dashboard could not load</h1>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => window.location.reload()}>Try again</Button>
+      </div>
+    );
+  }
 
   const volunteeringEventIds = new Set(volunteering.map((v) => v.events?.id));
   const attendingOnly = attending.filter((a) => !volunteeringEventIds.has(a.events?.id));
@@ -59,13 +91,12 @@ function DashboardPage() {
     <div className="container py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Hi {profile?.full_name?.split(' ')[0] || 'there'} 👋</h1>
+          <h1 className="text-3xl font-bold">Hi {profile?.full_name?.split(' ')[0] || 'there'}</h1>
           <p className="text-muted-foreground mt-1">Your upcoming campus activities</p>
         </div>
         <Link href="/events"><Button variant="outline" className="gap-2">Browse events <ArrowRight className="w-4 h-4" /></Button></Link>
       </div>
 
-      {/* Volunteering */}
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-3">
           <ClipboardList className="w-4 h-4 text-primary" />
@@ -74,7 +105,7 @@ function DashboardPage() {
         </div>
         {volunteering.length === 0 ? (
           <Card><CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-3">You haven’t signed up for any tasks yet.</p>
+            <p className="text-sm text-muted-foreground mb-3">You have not signed up for any tasks yet.</p>
             <Link href="/events"><Button size="sm">Find something to volunteer for</Button></Link>
           </CardContent></Card>
         ) : (
@@ -104,7 +135,6 @@ function DashboardPage() {
         )}
       </section>
 
-      {/* Attending (RSVP only, no volunteer signup) */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Heart className="w-4 h-4 text-primary fill-current" />
@@ -113,7 +143,7 @@ function DashboardPage() {
         </div>
         {attendingOnly.length === 0 ? (
           <Card><CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground">Nothing on your calendar yet. Tap “I’ll be there” on an event to add it here.</p>
+            <p className="text-sm text-muted-foreground">Nothing on your calendar yet. RSVP to an event to add it here.</p>
           </CardContent></Card>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">

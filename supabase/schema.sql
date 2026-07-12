@@ -9,7 +9,9 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
-  role text not null default 'student' check (role in ('student', 'organizer')),
+  role text not null default 'student' check (role in ('student', 'organizer', 'admin')),
+  organizer_request_status text not null default 'none' check (organizer_request_status in ('none', 'pending', 'approved', 'rejected')),
+  organizer_requested_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -65,12 +67,14 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, role)
+  insert into public.profiles (id, email, full_name, role, organizer_request_status, organizer_requested_at)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'role', 'student')
+    coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), split_part(new.email, '@', 1)),
+    'student',
+    case when new.raw_user_meta_data->>'requested_role' = 'organizer' then 'pending' else 'none' end,
+    case when new.raw_user_meta_data->>'requested_role' = 'organizer' then now() else null end
   )
   on conflict (id) do nothing;
   return new;
@@ -165,4 +169,6 @@ create policy "signups_self_delete" on public.volunteer_signups
 -- Grants (Supabase defaults are usually fine but be explicit)
 grant usage on schema public to anon, authenticated;
 grant select on public.clubs, public.events, public.tasks to anon;
-grant all on public.profiles, public.clubs, public.events, public.tasks, public.volunteer_signups to authenticated;
+grant select on public.profiles to authenticated;
+grant update (full_name) on public.profiles to authenticated;
+grant all on public.clubs, public.events, public.tasks, public.volunteer_signups to authenticated;
