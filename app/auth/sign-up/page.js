@@ -23,7 +23,7 @@ function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const emailRedirectTo = getAuthRedirectUrl('/dashboard');
+      const emailRedirectTo = getAuthRedirectUrl('/auth/confirm?next=/dashboard');
       const { data, error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
