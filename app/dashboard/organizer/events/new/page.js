@@ -30,8 +30,6 @@ function NewEventPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
       const payload = {
         title: form.title,
         description: form.description,
@@ -41,17 +39,16 @@ function NewEventPage() {
         cover_image: form.cover_image || null,
         club_id: form.club_id || null,
         visibility: form.visibility,
-        created_by: user.id,
       };
-      let { data, error } = await supabase.from('events').insert(payload).select().single();
-      if (error && error.code === '42703') {
-        // visibility column doesn't exist yet - retry without it
-        delete payload.visibility;
-        ({ data, error } = await supabase.from('events').insert(payload).select().single());
-      }
-      if (error) throw error;
+      const res = await fetch('/api/organizer/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Could not create event');
       toast.success('Event created!');
-      router.push(`/dashboard/organizer/events/${data.id}`);
+      router.push(`/dashboard/organizer/events/${body.event.id}`);
     } catch (err) {
       toast.error(err.message);
     } finally {
