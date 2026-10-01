@@ -85,7 +85,7 @@ export default function NavBar() {
       {/* Pill container — Chrome address-bar shape, proper height */}
       <div
         className={cn(
-          'flex h-12 w-full max-w-4xl items-center gap-2 rounded-full px-3',
+          'flex h-12 w-full max-w-5xl items-center gap-2 rounded-full px-3',
           'border border-border/60 bg-background/88 backdrop-blur-xl',
           'shadow-sm shadow-black/5 dark:shadow-black/25',
           'transition-shadow duration-200'
@@ -136,7 +136,7 @@ export default function NavBar() {
                 >
                   {initials}
                 </div>
-                <span className="hidden max-w-28 truncate text-sm text-muted-foreground lg:block">
+                <span className="hidden min-w-0 max-w-44 truncate text-sm text-muted-foreground lg:block">
                   {profile?.full_name?.split(' ')[0] || user.email}
                   {profile?.role && (
                     <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
