@@ -39,7 +39,7 @@ export async function GET(request) {
   });
 
   if (error) {
-    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent(error.message || 'Confirmation link is invalid or expired.')}`);
+    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent('Confirmation link is invalid or expired.')}`);
   }
 
   return NextResponse.redirect(`${origin}${next}`);

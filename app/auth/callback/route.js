@@ -12,7 +12,7 @@ export async function GET(request) {
   const errorDescription = searchParams.get('error_description');
 
   if (errorDescription) {
-    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent(errorDescription)}`);
+    return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent('Authentication could not be completed. Please try again.')}`);
   }
 
   if (code) {
@@ -35,7 +35,7 @@ export async function GET(request) {
     }
     const message = error.message?.includes('code verifier')
       ? 'This email link was opened without its original verification session. Please request a fresh confirmation or reset email and open the newest link.'
-      : error.message;
+      : 'Authentication could not be completed. Please try again.';
     return NextResponse.redirect(`${origin}/auth/sign-in?err=${encodeURIComponent(message)}`);
   }
 

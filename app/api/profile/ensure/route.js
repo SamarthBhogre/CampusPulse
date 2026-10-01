@@ -21,7 +21,8 @@ export async function GET() {
   }
 
   if (readError) {
-    return NextResponse.json({ error: readError.message }, { status: 500 });
+    console.error('Profile lookup failed', readError);
+    return NextResponse.json({ error: 'Could not load your profile' }, { status: 500 });
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -48,7 +49,8 @@ export async function GET() {
     .single();
 
   if (repairError) {
-    return NextResponse.json({ error: repairError.message }, { status: 500 });
+    console.error('Profile repair failed', repairError);
+    return NextResponse.json({ error: 'Could not repair your profile' }, { status: 500 });
   }
 
   return NextResponse.json({ profile: repaired, repaired: true });

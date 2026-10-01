@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import ImageUpload from '@/components/image-upload';
+import { ArrowLeft } from 'lucide-react';
 
 function NewEventPage() {
   const router = useRouter();
@@ -57,11 +59,17 @@ function NewEventPage() {
   }
 
   return (
-    <div className="container max-w-2xl py-10">
-      <Card>
-        <CardHeader><CardTitle className="text-2xl">Create a new event</CardTitle></CardHeader>
+    <div className="container max-w-2xl py-8 animate-in-up">
+      <Link href="/dashboard/organizer" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back to dashboard
+      </Link>
+      <Card className="shadow-sm">
+        <CardHeader>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Organizer tools</p>
+          <CardTitle className="text-2xl font-bold tracking-tight">Create a new event</CardTitle>
+        </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="title">Event title</Label>
               <Input id="title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="HackNight 2025" />

@@ -194,7 +194,7 @@ frontend:
     file: "/app/app/events/page.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
@@ -202,6 +202,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "Fully tested and working. All 5 event cards render with cover images, club badges (Environmental Club, Volunteer Outreach, Computer Science Society, Sports Council, Cultural Committee), dates, locations, and volunteer slot counts. Search filter works (typing 'hack' shows only HackNight). Club filter works (selecting 'Volunteer Outreach' shows only Blood Donation Camp). 'Open tasks only' toggle works."
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 1 changed event discovery to database-side search/date/club filtering, bounded pagination, and aggregate capacity RPCs. Requires live Supabase retest after migrations 008 and 009 are applied."
   - task: "Event detail page with task list and volunteer/withdraw buttons"
     implemented: true
     working: true
@@ -239,7 +242,7 @@ frontend:
     file: "/app/app/dashboard/organizer/page.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
@@ -250,6 +253,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "FIXED: Main agent applied try/catch/finally to load() function. Organizer dashboard now renders correctly after sign-in. Shows 'Organizer Dashboard' heading, 'Create event' button, and all 5 seeded events (Campus Tree Plantation Drive, Blood Donation Camp, HackNight 2025, Inter-College Football Tournament, Spring Cultural Fest) with cover images, volunteer counts, task counts, and Manage/Delete buttons. Full organizer management flow is working."
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 1 changed dashboard statistics to Supabase count projections and narrowed participant reads. Requires organizer regression retest after migration 009."
   - task: "Create event page with cover image upload"
     implemented: true
     working: true
@@ -293,17 +299,53 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 0
+  test_sequence: 1
   run_ui: true
 
 test_plan:
   current_focus:
-    - "All critical flows tested and working"
+    - "Retest auth network-error handling and sign-in once Supabase DNS is available"
+    - "Retest P3 responsive navigation, event discovery/detail, dashboards, admin, clubs, and auth screens"
+    - "Retest event discovery pagination/search/date/club/open-task filters after UI changes"
+    - "Retest organizer dashboard counts and participant CSV access after UI changes"
+    - "Apply and verify migrations 008 and 009 in Supabase when project DNS is available"
+    - "Verify student cannot read other users' participant contact rows"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    - agent: "main"
+      message: |
+        Production verification attempted. Live Supabase probing could not connect because the
+        configured project hostname returned ENOTFOUND; no credentials were printed. Static review
+        found and fixed two migration-readiness issues: migration 009 now creates its view safely on
+        first apply, and redundant idx_clubs_name was removed from migration 008.
+    - agent: "main"
+      message: |
+        P3 UI modernization implemented. Added reusable page header, event card, skeleton, empty,
+        and error states; responsive Radix mobile navigation; improved event discovery/detail layouts;
+        modernized student, organizer, admin, clubs, and auth screens; added password visibility controls,
+        accessible labels/focus states, responsive tables/grids, and reduced-motion support. Existing
+        backend/query work was preserved. UI retesting is required; live Supabase verification remains
+        blocked by the previously recorded ENOTFOUND project hostname.
+    - agent: "main"
+      message: |
+        Phase 1 implementation added migration 009 privacy policies and safe aggregate RPCs,
+        database-side event filters with pagination, club counts, server-side event validation,
+        safe route error messages, and Node test coverage for migration/query contracts.
+        Retest is required after applying migrations 008_query_hardening.sql and
+        009_privacy_aggregates.sql. Live Supabase credentials are required for RLS and UI flows.
+    - agent: "main"
+      message: |
+        Local validation completed: npm test passes 3 focused regression tests, npm run lint exits
+        successfully with existing React hook dependency warnings, and npm run build passes.
+        Live Supabase RLS/query behavior remains unverified until migrations 008 and 009 are applied.
+    - agent: "main"
+      message: |
+        Production verification local checks completed after migration-readiness fixes: npm test
+        passes 4 tests and npm run build passes. Live object/index/RLS checks could not run because
+        the configured Supabase hostname returned ENOTFOUND; migration state is UNKNOWN.
     - agent: "main"
       message: |
         Campus Pulse MVP is fully built and connected to a real Supabase project.
@@ -390,3 +432,29 @@ agent_communication:
         
         SUMMARY:
         All critical flows are now working. The main issue (pages stuck on loading) has been completely resolved by the try/catch/finally fix. The only minor issue is the forgot password backend returning a 400 error, which is a Supabase configuration issue, not a code issue. The UI for all features is working correctly.
+    - agent: "main"
+      message: |
+        P3 local verification completed. Browser checks at the mobile breakpoint confirmed the
+        accessible navigation menu, auth password visibility controls, and retryable event discovery
+        failure state. npm test passed 4/4, npm run lint exited 0 with six pre-existing hook dependency
+        warnings, npm run build passed, and git diff --check passed. This is local verification only;
+        authenticated Supabase-backed workflows and production RLS remain unverified because the
+        configured Supabase hostname still returns ENOTFOUND.
+    - agent: "main"
+      message: |
+        User reported a client-side TypeError: Failed to fetch from signInWithPassword. Hardened the
+        sign-in, sign-up, forgot-password, and update-password screens to map network/auth failures
+        to stable user-facing messages without exposing raw Supabase errors. Local npm test passed
+        4/4 and lint exited 0 with the existing six hook dependency warnings. Supabase DNS remains
+        unavailable, so successful authentication is still not verified.
+    - agent: "main"
+      message: |
+        Supabase rejected migration 009 because PostgreSQL does not support max(uuid) in the event
+        task and RSVP summary functions. Replaced both UUID max expressions with ordered correlated
+        lookups for the current user's latest signup/RSVP. Local npm test passed 4/4 and git diff
+        check passed. Migration 009 must be rerun after migration 008 in the Supabase SQL Editor.
+    - agent: "main"
+      message: |
+        Supabase then reported that volunteer_signups uses signed_up_at rather than created_at.
+        Corrected the aggregate lookup ordering in migration 009 to signed_up_at. Local npm test
+        passed 4/4 and git diff check passed. Rerun the complete corrected migration 009.

@@ -30,4 +30,11 @@ Easiest option: sign up through the Campus Pulse UI itself with these two accoun
 - New Query -> paste the contents of `seed.sql` -> Run.
 - This will attach clubs, events, and volunteer tasks to your organizer account.
 
+## Step 7 - Apply incremental migrations
+
+Run the SQL files in `supabase/migrations/` in filename order after the base
+schema. `008_query_hardening.sql` adds indexes for the event, club, and RSVP
+query paths. `009_privacy_aggregates.sql` adds privacy-preserving profile and
+participation policies plus safe aggregate RPCs. Both are safe to rerun.
+
 Done! Log in and enjoy Campus Pulse.

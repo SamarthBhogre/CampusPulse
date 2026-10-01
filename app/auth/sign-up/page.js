@@ -75,12 +75,12 @@ function SignUpPage() {
   return (
     <div className="container max-w-md py-16">
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle className="text-2xl">Create your account</CardTitle>
           <CardDescription>Join Campus Pulse in 30 seconds.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="full_name">Full name</Label>
               <Input id="full_name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Ada Lovelace" />

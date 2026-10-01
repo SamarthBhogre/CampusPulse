@@ -1,6 +1,24 @@
 # Campus Pulse Engineering Audit
 
-Audit date: 2026-07-12
+Audit date: 2026-08-19
+
+## Phase 1 audit update
+
+This review re-checked the current repository, migrations, route handlers, and
+client queries before making changes. The most important current findings are:
+
+- `app/events/page.js` fetches every event, task, volunteer signup, and RSVP
+  row before filtering locally; this is the largest unbounded read.
+- Organizer dashboards fetch child-table rows only to calculate counts, and
+  club pages fetch all memberships only to calculate a member total.
+- The effective RLS policies allow every authenticated user to read all
+  profiles, club members, volunteer signups, and RSVPs. This exposes email,
+  membership, attendance, and volunteer participation data beyond the minimum
+  needed by the UI. Tightening this safely requires coordinated aggregate
+  views/RPCs and UI query changes.
+- Several server routes return raw Supabase/Postgres error messages.
+- There is no JavaScript test runner or lint script; `tests/__init__.py` is the
+  only test file.
 
 ## Executive summary
 
@@ -43,13 +61,13 @@ Validation performed: `yarn build` passes.
 
 ## Critical issues report
 
-### 1. Organizer role is self-assignable
+### 1. Organizer role escalation — fixed in migrations
 
-- Evidence: `app/auth/sign-up/page.js` sends `role` in signup metadata; `supabase/schema.sql` inserts `new.raw_user_meta_data->>'role'`.
-- Severity: Critical.
-- Impact: Any new user can become an organizer and gain event/club write capabilities.
-- Recommendation: Default all signups to `student`; promote organizers through an admin-only workflow or invite code.
-- Effort: Medium.
+- Evidence: `005_auth_role_hardening.sql` and the combined 006/007 migration
+  force new profiles to `student`; organizer requests remain `pending` until
+  the admin approval route promotes the profile.
+- Status: Implemented in code/migrations; requires live Supabase verification.
+- Remaining control: RLS and server-side role checks remain authoritative.
 
 ### 2. Broad PII read exposure
 
@@ -78,7 +96,8 @@ Validation performed: `yarn build` passes.
 ## Security report
 
 - Auth: Supabase Auth is a sound foundation, but passwords allow only six characters in the UI and MFA readiness is absent.
-- Authorization: RLS protects mutations better than reads. The largest gap is role self-assignment.
+- Authorization: RLS protects mutations and organizer self-promotion is blocked;
+  the remaining gap is historical broad-read exposure until migration 009 is applied.
 - API security: There is no custom REST API surface beyond a health fallback. Main risk is direct client access to broad Supabase tables.
 - Headers: previously `X-Frame-Options: ALLOWALL`, `frame-ancestors *`, and wildcard CORS were set in `next.config.js`; now hardened.
 - File uploads: client now restricts PNG/JPG/WEBP/GIF and 5 MB, matching storage setup. Server-side enforcement still depends on bucket configuration.
@@ -99,10 +118,10 @@ Validation performed: `yarn build` passes.
 
 - Good: small route sizes, production build passes, static rendering where possible.
 - Risks:
-  - `app/events/page.js` loads all events/tasks/signups/rsvps client-side.
-  - Club pages count all memberships client-side.
-  - No pagination for events, clubs, RSVPs, volunteers, or member lists.
-- Recommendation: add server-side paginated queries or Supabase RPC/views for aggregate counts.
+  - Event discovery now uses database filters, bounded pages, and aggregate capacity RPCs.
+  - Club and organizer cards now use aggregate count queries/projections.
+  - Organizer participant exports and management lists still need pagination for very large events.
+- Recommendation: apply migration 009 and add incremental loading to management/export lists.
 
 ## API report
 
@@ -200,10 +219,48 @@ supabase/
 - [x] Basic security headers hardened.
 - [x] Upload MIME validation tightened.
 - [x] Database hardening migration prepared.
-- [ ] Migration applied to Supabase and verified.
-- [ ] Organizer self-promotion removed.
-- [ ] Profile/member PII policies tightened.
-- [ ] Automated tests added.
+- [ ] Migrations 008/009 applied to Supabase and verified.
+- [x] Organizer self-promotion removed in the effective migration path.
+- [x] Privacy policies and aggregate projections prepared in migration 009.
+- [x] Focused contract tests added.
+- [ ] Live RLS integration tests added.
 - [ ] CI/CD configured.
 - [ ] Monitoring/error reporting configured.
 - [ ] Privacy/retention/account deletion documented and implemented.
+
+## Prioritized Phase 1 implementation plan
+
+### P0 — security and correctness
+
+1. Replace broad PII/participation reads with a public-profile projection and
+   protected organizer/admin views; add aggregate RPCs for task/RSVP counts.
+2. Add RLS regression coverage for role escalation, organizer ownership,
+   membership privacy, RSVP ownership, and volunteer ownership/capacity.
+3. Replace raw internal errors in route responses with stable safe messages.
+
+### P1 — performance and reliability
+
+1. Use count projections for event, organizer, and club cards instead of
+   transferring child rows used only for totals.
+2. Add pagination/incremental loading to events, clubs, volunteers, RSVPs, and
+   members.
+3. Add indexes only for observed filters and sort paths, then verify with
+   representative `EXPLAIN` plans.
+
+### P2 — maintainability and testing
+
+1. Add a JavaScript test foundation and focused domain tests for critical flows.
+2. Centralize error mapping and reusable loading/empty/error states.
+3. Add schema validation for organizer event/task mutations.
+
+### P3 — UI/UX and accessibility
+
+1. Replace remaining blank/spinner states with reusable skeletons and retryable
+   error states.
+2. Improve mobile navigation, tables/lists, labels, focus states, and event
+   card hierarchy.
+
+### P4 — future scale
+
+1. Add audit logging, notifications, account deletion/export, and attendance
+   check-in after the privacy and test foundations are in place.

@@ -26,15 +26,16 @@ function ForgotPasswordPage() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      toast.error(err.message || 'Could not send reset link');
+      toast.error(err instanceof TypeError ? 'Campus Pulse could not reach the password reset service. Check your connection and try again.' : 'Could not send reset link. Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="container max-w-md py-16">
-      <Card>
+    <div className="container max-w-md py-10 sm:py-16">
+      <div className="mb-8 text-center"><div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><MailCheck className="h-5 w-5" /></div><p className="text-sm font-medium text-primary">Account recovery</p></div>
+      <Card className="border-border/70 shadow-lg shadow-primary/5">
         <CardHeader>
           <CardTitle className="text-2xl">Reset your password</CardTitle>
           <CardDescription>Enter your email and we’ll send you a link to set a new password.</CardDescription>

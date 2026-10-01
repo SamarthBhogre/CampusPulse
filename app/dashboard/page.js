@@ -1,17 +1,73 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { ensureCurrentProfile } from '@/lib/profile';
-import { Calendar, MapPin, ArrowRight, Heart, ClipboardList } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Heart, ClipboardList, CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
+import PageHeader from '@/components/page-header';
+import EmptyState from '@/components/empty-state';
+import ErrorState from '@/components/error-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-function DashboardPage() {
+function StatCard({ icon: Icon, label, value, sublabel, colorClass }) {
+  return (
+    <div className={`rounded-xl border p-5 ${colorClass}`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <p className="text-3xl font-bold tracking-tight">{value}</p>
+      {sublabel && <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>}
+    </div>
+  );
+}
+
+function EventListItem({ event, task }) {
+  return (
+    <Link href={`/events/${event?.id}`} className="group block rounded-lg border border-border/70 bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <div className="flex gap-4">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+          {event?.cover_image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.cover_image} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-muted-foreground/30">
+              <Calendar className="h-6 w-6" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          {event?.clubs?.name && (
+            <Badge variant="secondary" className="mb-1 text-[10px]">{event.clubs.name}</Badge>
+          )}
+          <h3 className="font-semibold leading-snug line-clamp-1 group-hover:text-primary transition-colors">{event?.title}</h3>
+          {task && <p className="text-xs text-muted-foreground mt-0.5">Task: {task.title}</p>}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+            {event?.starts_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {format(new Date(event.starts_at), 'MMM d, yyyy')}
+              </span>
+            )}
+            {event?.location && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {event.location}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default function DashboardPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
   const [loading, setLoading] = useState(true);
@@ -22,24 +78,14 @@ function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.push('/auth/sign-in');
-          return;
-        }
-
+        if (!user) { router.push('/auth/sign-in'); return; }
         const p = await ensureCurrentProfile();
         if (cancelled) return;
         setProfile(p);
-
-        if (p.role === 'organizer') {
-          router.replace('/dashboard/organizer');
-          return;
-        }
-
+        if (p.role === 'organizer') { router.replace('/dashboard/organizer'); return; }
         const [{ data: signups }, { data: rsvps }] = await Promise.all([
           supabase
             .from('volunteer_signups')
@@ -54,118 +100,123 @@ function DashboardPage() {
             .order('created_at', { ascending: false })
             .limit(50),
         ]);
-
         if (!cancelled) {
           setVolunteering(signups || []);
           setAttending(rsvps || []);
         }
       } catch (err) {
         console.error('Student dashboard load failed', err);
-        if (!cancelled) setError(err?.message || 'Dashboard failed to load');
+        if (!cancelled) setError('We could not load your activity right now.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-
     return () => { cancelled = true; };
   }, [supabase, router]);
 
   if (loading) {
-    return <div className="container py-16 text-center text-muted-foreground">Loading...</div>;
+    return (
+      <div className="container py-8 space-y-6 animate-in-fade">
+        <Skeleton className="h-20 w-2/3" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-xl" />
+        </div>
+        <Skeleton className="h-5 w-32" />
+        <div className="space-y-3">
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="container py-16 max-w-lg text-center">
-        <h1 className="text-2xl font-bold mb-2">Dashboard could not load</h1>
-        <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Try again</Button>
+      <div className="container max-w-2xl py-16">
+        <ErrorState title="Dashboard could not load" description={error} onRetry={() => window.location.reload()} />
       </div>
     );
   }
 
   const volunteeringEventIds = new Set(volunteering.map((v) => v.events?.id));
   const attendingOnly = attending.filter((a) => !volunteeringEventIds.has(a.events?.id));
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
 
   return (
-    <div className="container py-10">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Hi {profile?.full_name?.split(' ')[0] || 'there'}</h1>
-          <p className="text-muted-foreground mt-1">Your upcoming campus activities</p>
-        </div>
-        <Link href="/events"><Button variant="outline" className="gap-2">Browse events <ArrowRight className="w-4 h-4" /></Button></Link>
+    <div className="container py-8 sm:py-10 animate-in-up">
+      <PageHeader
+        eyebrow="Your campus"
+        title={`Hi ${firstName} 👋`}
+        description="Track events and communities you care about."
+        action={
+          <Link href="/events">
+            <Button className="gap-2">
+              Browse events <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        }
+      />
+
+      {/* Stats */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <StatCard
+          icon={ClipboardList}
+          label="Volunteering"
+          value={volunteering.length}
+          sublabel="Tasks you have signed up for"
+          colorClass="border-primary/20 bg-primary/[0.03]"
+        />
+        <StatCard
+          icon={Heart}
+          label="Attending"
+          value={attending.length}
+          sublabel="RSVPs on your calendar"
+          colorClass="border-rose-500/20 bg-rose-500/[0.03]"
+        />
       </div>
 
-      <section className="mb-10">
-        <div className="flex items-center gap-2 mb-3">
-          <ClipboardList className="w-4 h-4 text-primary" />
-          <h2 className="text-xl font-semibold">Volunteering</h2>
-          <Badge variant="secondary">{volunteering.length}</Badge>
+      {/* Volunteering */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold">Volunteering</h2>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{volunteering.length}</span>
         </div>
         {volunteering.length === 0 ? (
-          <Card><CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-3">You have not signed up for any tasks yet.</p>
-            <Link href="/events"><Button size="sm">Find something to volunteer for</Button></Link>
-          </CardContent></Card>
+          <EmptyState
+            icon={ClipboardList}
+            title="No volunteer tasks yet"
+            description="Find an event and sign up to help out."
+            action={<Link href="/events"><Button size="sm">Explore events</Button></Link>}
+          />
         ) : (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-3 md:grid-cols-2 animate-stagger">
             {volunteering.map((it) => (
-              <Link key={it.id} href={`/events/${it.events?.id}`}>
-                <Card className="hover:shadow-md transition"><CardContent className="p-5 flex gap-4">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                    {it.events?.cover_image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.events.cover_image} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {it.events?.clubs?.name && <Badge variant="secondary" className="mb-1">{it.events.clubs.name}</Badge>}
-                    <h3 className="font-semibold line-clamp-1">{it.events?.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Task: {it.tasks?.title}</p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      {it.events?.starts_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(new Date(it.events.starts_at), 'MMM d')}</span>}
-                      {it.events?.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{it.events.location}</span>}
-                    </div>
-                  </div>
-                </CardContent></Card>
-              </Link>
+              <EventListItem key={it.id} event={it.events} task={it.tasks} />
             ))}
           </div>
         )}
       </section>
 
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Heart className="w-4 h-4 text-primary fill-current" />
-          <h2 className="text-xl font-semibold">Attending</h2>
-          <Badge variant="secondary">{attendingOnly.length}</Badge>
+      {/* Attending */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center gap-2">
+          <CalendarRange className="h-4 w-4 text-rose-500" />
+          <h2 className="font-semibold">Attending</h2>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{attendingOnly.length}</span>
         </div>
         {attendingOnly.length === 0 ? (
-          <Card><CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground">Nothing on your calendar yet. RSVP to an event to add it here.</p>
-          </CardContent></Card>
+          <EmptyState
+            icon={Heart}
+            title="Your calendar is open"
+            description="RSVP to events you want to attend and they will appear here."
+            action={<Link href="/events"><Button variant="outline" size="sm">Browse events</Button></Link>}
+          />
         ) : (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-3 md:grid-cols-2 animate-stagger">
             {attendingOnly.map((it) => (
-              <Link key={it.id} href={`/events/${it.events?.id}`}>
-                <Card className="hover:shadow-md transition"><CardContent className="p-5 flex gap-4">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                    {it.events?.cover_image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.events.cover_image} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {it.events?.clubs?.name && <Badge variant="secondary" className="mb-1">{it.events.clubs.name}</Badge>}
-                    <h3 className="font-semibold line-clamp-1">{it.events?.title}</h3>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      {it.events?.starts_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(new Date(it.events.starts_at), 'MMM d')}</span>}
-                      {it.events?.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{it.events.location}</span>}
-                    </div>
-                  </div>
-                </CardContent></Card>
-              </Link>
+              <EventListItem key={it.id} event={it.events} />
             ))}
           </div>
         )}
@@ -173,5 +224,3 @@ function DashboardPage() {
     </div>
   );
 }
-
-export default DashboardPage;

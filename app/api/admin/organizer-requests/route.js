@@ -15,7 +15,8 @@ export async function GET() {
     .limit(100);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Organizer request list failed', error);
+    return NextResponse.json({ error: 'Could not load organizer requests' }, { status: 500 });
   }
 
   return NextResponse.json({ requests: data || [] });

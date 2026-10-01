@@ -1,6 +1,14 @@
 import './globals.css';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Providers } from './providers';
 import NavBar from '@/components/nav-bar';
+
+const jakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'Campus Pulse',
@@ -9,11 +17,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-background text-foreground antialiased">
+    <html lang="en" suppressHydrationWarning className={jakartaSans.variable}>
+      <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         <Providers>
           <NavBar />
-          <main className="pt-16">{children}</main>
+          {/* pt = navbar h-12 + py-2.5 top + py-2.5 bottom = 48+10+10 = 68px */}
+          <main className="pt-[68px]">{children}</main>
         </Providers>
       </body>
     </html>

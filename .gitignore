@@ -92,3 +92,6 @@ credentials.json
 # Allow example env file (safe placeholders only)
 !.env.example
 !.env.local.example
+
+# Next.js stale recovery
+.next-stale-recovery/

@@ -1,0 +1,196 @@
+# Changelog
+
+All notable changes to CampusPulse are documented here.
+
+---
+
+## [2.0.0] — 2026-10-01 — Production Hardening
+
+This release takes CampusPulse from MVP/pre-production to a production-ready state.
+It covers security hardening, bug fixes, a complete admin dashboard, attendance tracking,
+notifications, structured observability, and a comprehensive test suite.
+
+---
+
+### 🔒 Security
+
+- **Fix critical RSVP/volunteer authorization bypass** — Non-members could previously RSVP
+  to or volunteer for club-only events directly via the Supabase client. Authorization is
+  now enforced at the database level via `can_participate_in_event()`, `rsvp_to_event()`,
+  and `volunteer_for_task()` security-definer RPCs (migration 010). Frontend calls are
+  routed through validated server-side API routes; direct client inserts are gone.
+- **Centralize all sensitive mutations through API routes** — Event creation, editing,
+  deletion, task management, RSVP, and volunteer operations now all go through
+  authenticated, ownership-verified API routes instead of direct browser Supabase calls.
+- **Add `requireOrganizer()` helper** (`lib/organizer-auth.js`) — Consistent server-side
+  organizer guard used across all organizer routes.
+- **Organizer A cannot touch Organizer B's events** — Every organizer mutation verifies
+  `created_by = auth.user.id` before proceeding.
+- **Unknown API paths return 404** — The previous catch-all returned `200 OK` for any
+  path. It now returns `404 Not Found`.
+- **Structured logger with PII sanitization** (`lib/logger.js`) — Passwords, tokens,
+  secrets, and keys are automatically redacted from log output. JSON format in production,
+  human-readable in development.
+
+---
+
+### 🐛 Bug Fixes
+
+- **BUG-002** — Organizer event management page was stuck on skeleton UI when an error
+  occurred. Now has distinct `loading`, `loadError`, and `notFound` states with a retry
+  action and proper `ErrorState` component rendering.
+- **BUG-003** — "Has openings" filter was applied client-side on an already-paginated
+  slice of results. A new `get_events_page` RPC (migration 011) applies the `open_only`
+  filter before `LIMIT/OFFSET`, so pagination counts and results are always accurate.
+- **BUG-005** — Added a dedicated `/api/health` endpoint returning structured health JSON.
+  The catch-all route now returns `404` for all unmatched paths.
+- **BUG-008** — Fixed React `useEffect` missing dependency warnings across six pages:
+  `app/events/page.js`, `app/events/[id]/page.js`, `app/clubs/page.js`,
+  `app/clubs/[id]/page.js`, `app/dashboard/organizer/page.js`,
+  `app/dashboard/organizer/events/[id]/page.js`. All `load` functions are now wrapped
+  in `useCallback` with correct dependency arrays.
+- **BUG-010 (partial)** — Improved `alt` text on event cover images and club event cards.
+  Added `aria-hidden="true"` to decorative icons. Added `aria-label` on destructive
+  action buttons.
+- **Fix `/api/admin/system-health` 404** — System Health page was calling the wrong URL.
+  Corrected to `/api/admin/health`.
+- **Fix `is_suspended` column missing** — Admin Users page was crashing with a 500 error
+  because the `profiles.is_suspended` column did not exist. Migration 013 adds it.
+
+---
+
+### ✨ New Features
+
+#### Admin Dashboard (complete rewrite)
+
+The admin area is now a full campus administration and operations centre.
+
+- **Overview** (`/admin/dashboard`) — Real-time metric cards: total users by role,
+  events by time window and status, total RSVPs, volunteer signups, clubs, and a
+  prominent banner for pending organizer requests.
+- **Organizer Management** (`/admin/dashboard/organizers`) — Approve and reject
+  organizer applications. Every decision writes an audit log entry and enqueues a
+  notification to the applicant.
+- **User Management** (`/admin/dashboard/users`) — Paginated, searchable user list
+  with role filter. Suspend and restore accounts with confirmation dialogs.
+- **Event Moderation** (`/admin/dashboard/events`) — Paginated event list with status
+  filter. Hide, cancel, and restore events with audit trail.
+- **Club Management** (`/admin/dashboard/clubs`) — Searchable club list with live
+  member counts.
+- **Analytics** (`/admin/dashboard/analytics`) — Time-series charts (7 / 30 / 90 days)
+  for events created, RSVPs, volunteer signups, and most-active clubs by event count.
+  Powered by Recharts.
+- **Audit Log** (`/admin/dashboard/audit-log`) — Paginated, colour-coded log of all
+  administrative actions with actor identity, target, and metadata.
+- **System Health** (`/admin/dashboard/system-health`) — Live database and storage
+  connectivity checks with overall status banner.
+- **Sidebar layout** (`app/admin/dashboard/layout.js`) — Collapsible sidebar with
+  navigation, pending-request badge, admin identity footer, and sign-out.
+
+#### New Admin API Routes
+
+| Route | Purpose |
+|---|---|
+| `GET /api/admin/stats` | Aggregated platform statistics |
+| `GET /api/admin/users` | Paginated user list with search and role filter |
+| `PATCH /api/admin/users/[id]` | Suspend / restore / remove organizer role |
+| `GET /api/admin/events` | Paginated event list with search and status filter |
+| `PATCH /api/admin/events/[id]` | Hide / restore / cancel event |
+| `GET /api/admin/clubs` | Paginated club list with member counts |
+| `GET /api/admin/audit-log` | Paginated admin audit log |
+| `GET /api/admin/analytics` | Time-series analytics data |
+| `GET /api/admin/health` | DB + Storage health probe |
+
+#### Attendance Tracking
+
+- New `event_attendance` table with RLS (migration 012).
+- `GET/POST/DELETE /api/organizer/events/[id]/attendance` — Organizers can mark
+  attendance, undo check-ins, and list attendees with profile details. All endpoints
+  verify event ownership before processing.
+
+#### Notification System
+
+- `lib/notifications/index.js` — `enqueueNotification(recipientId, type, payload)`
+  writes to a `notification_queue` table (migration 012). Fire-and-forget; errors
+  never block the main request.
+- `NOTIFICATION_TYPES` constants for all system events.
+- Organizer approval and rejection now enqueue notifications to the applicant.
+
+---
+
+### 🗄️ Database Migrations
+
+| File | Description |
+|---|---|
+| `010_club_only_rsvp_enforcement.sql` | `can_participate_in_event`, `rsvp_to_event`, `volunteer_for_task` RPCs; fixed INSERT policies on `event_rsvps` and `volunteer_signups` |
+| `011_events_page_rpc.sql` | `get_events_page` RPC — server-side pagination with open-only filter before LIMIT/OFFSET |
+| `012_attendance_audit_notifications.sql` | `event_attendance`, `admin_audit_log`, `notification_queue`, `notification_preferences` tables; `write_audit_log()` security-definer function; `status` column on `events` |
+| `013_profiles_is_suspended.sql` | `is_suspended` boolean column on `profiles` with partial index |
+
+---
+
+### 🧪 Tests
+
+- **`tests/security.test.cjs`** — 79 static analysis tests covering:
+  - Security: club-only RSVP/volunteer enforcement
+  - Authorization: every admin and organizer route is guarded
+  - Organizer cross-event isolation
+  - All confirmed bug fixes (BUG-002, BUG-003, BUG-005, BUG-008)
+  - Zod validation schemas
+  - Complete migration chain
+  - Admin dashboard page coverage
+  - Logger, notifications, and attendance API
+
+**Result: 79 / 79 passing.**
+
+---
+
+### 🔧 Refactors & Code Quality
+
+- `app/api/organizer/events/route.js` — Migrated from inline auth to `requireOrganizer()`.
+- `app/api/organizer/events/[id]/route.js` — Added `GET` (fetch for edit form) and
+  `DELETE` handlers. PATCH now uses explicit field mapping and ownership pre-check.
+- `app/api/admin/organizer-requests/[id]/route.js` — Now writes audit log entry and
+  enqueues notification on every decision.
+- `lib/validation/events.js` and `lib/validation/tasks.js` — Shared Zod schemas used
+  by both create and edit flows.
+- `app/clubs/[id]/page.js` — Added proper loading skeleton, `ErrorState` on failure,
+  improved alt text on event images.
+
+---
+
+### 📦 New Files Summary
+
+```
+lib/logger.js
+lib/organizer-auth.js
+lib/notifications/index.js
+lib/validation/events.js
+lib/validation/tasks.js
+app/api/health/route.js
+app/api/events/[id]/rsvp/route.js
+app/api/events/[id]/volunteer/route.js
+app/api/organizer/events/[id]/attendance/route.js
+app/api/admin/stats/route.js
+app/api/admin/users/route.js
+app/api/admin/users/[id]/route.js
+app/api/admin/events/route.js
+app/api/admin/events/[id]/route.js
+app/api/admin/clubs/route.js
+app/api/admin/audit-log/route.js
+app/api/admin/analytics/route.js
+app/api/admin/health/route.js
+app/admin/dashboard/layout.js
+app/admin/dashboard/organizers/page.js
+app/admin/dashboard/users/page.js
+app/admin/dashboard/events/page.js
+app/admin/dashboard/clubs/page.js
+app/admin/dashboard/analytics/page.js
+app/admin/dashboard/audit-log/page.js
+app/admin/dashboard/system-health/page.js
+supabase/migrations/010_club_only_rsvp_enforcement.sql
+supabase/migrations/011_events_page_rpc.sql
+supabase/migrations/012_attendance_audit_notifications.sql
+supabase/migrations/013_profiles_is_suspended.sql
+tests/security.test.cjs
+```

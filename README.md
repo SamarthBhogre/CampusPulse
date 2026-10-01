@@ -47,6 +47,8 @@ Run in this order:
 5. `supabase/migrations/005_auth_role_hardening.sql`
 6. `supabase/migrations/006_organizer_access_requests.sql`
 7. `supabase/migrations/007_admin_role.sql`
+8. `supabase/migrations/008_query_hardening.sql`
+9. `supabase/migrations/009_privacy_aggregates.sql`
 
 Fallback for partial 006/007 setup:
 

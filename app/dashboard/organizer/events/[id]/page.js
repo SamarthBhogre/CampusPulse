@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,24 @@ import ImageUpload from '@/components/image-upload';
 import { downloadCSV } from '@/lib/csv';
 import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import ErrorState from '@/components/error-state';
+import EmptyState from '@/components/empty-state';
+
+function toLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function ManageEventPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
+
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -29,92 +41,171 @@ function ManageEventPage({ params }) {
   const [profiles, setProfiles] = useState({});
   const [newTask, setNewTask] = useState({ title: '', description: '', volunteers_needed: 1 });
 
-  async function load() {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
     try {
-      const { data: ev } = await supabase.from('events').select('*, clubs(name)').eq('id', id).maybeSingle();
-      if (!ev) { toast.error('Event not found'); router.push('/dashboard/organizer'); return; }
-      setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: ev.ends_at ? toLocal(ev.ends_at) : '' });
-      const { data: ts } = await supabase.from('tasks').select('*').eq('event_id', id).order('created_at');
+      // Fetch event via API (server-validates organizer ownership)
+      const evRes = await fetch(`/api/organizer/events/${id}`, { cache: 'no-store' });
+      if (evRes.status === 401) { router.push('/auth/sign-in'); return; }
+      if (evRes.status === 403 || evRes.status === 404) {
+        router.push('/dashboard/organizer');
+        return;
+      }
+      if (!evRes.ok) {
+        const body = await evRes.json().catch(() => ({}));
+        throw new Error(body.error || 'Could not load event');
+      }
+      const { event: ev } = await evRes.json();
+      setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: toLocal(ev.ends_at) });
+
+      const [{ data: ts }, { data: sus }, { data: rs }] = await Promise.all([
+        supabase.from('tasks').select('*').eq('event_id', id).order('created_at'),
+        supabase.from('volunteer_signups').select('*').eq('event_id', id),
+        supabase.from('event_rsvps').select('*').eq('event_id', id),
+      ]);
       setTasks(ts || []);
-      const { data: sus } = await supabase.from('volunteer_signups').select('*').eq('event_id', id);
       setSignups(sus || []);
-      const { data: rs } = await supabase.from('event_rsvps').select('*').eq('event_id', id);
       setRsvps(rs || []);
+
       const allProfileIds = [
         ...new Set([...(sus || []).map((s) => s.profile_id), ...(rs || []).map((r) => r.profile_id)]),
       ];
       if (allProfileIds.length) {
-        const { data: pfs } = await supabase.from('profiles').select('id, full_name, email').in('id', allProfileIds);
+        const { data: pfs } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', allProfileIds);
         const map = {};
         (pfs || []).forEach((p) => { map[p.id] = p; });
         setProfiles(map);
       }
     } catch (err) {
       console.error('Manage event load failed', err);
-      toast.error(err?.message || 'Failed to load event');
+      setLoadError(err?.message || 'Could not load event. Please try again.');
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, supabase, router]);
 
-  useEffect(() => { load(); }, [id]);
-
-  function toLocal(iso) {
-    const d = new Date(iso);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
+  useEffect(() => { load(); }, [load]);
 
   async function saveEvent(e) {
     e.preventDefault();
     setSaving(true);
-    const payload = {
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      cover_image: event.cover_image,
-      visibility: event.visibility || 'public',
-      starts_at: new Date(event.starts_at_local).toISOString(),
-      ends_at: event.ends_at_local ? new Date(event.ends_at_local).toISOString() : null,
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabase.from('events').update(payload).eq('id', id);
-    if (error) toast.error(error.message); else toast.success('Event updated');
-    setSaving(false);
+    try {
+      const payload = {
+        title: event.title,
+        description: event.description || null,
+        location: event.location || null,
+        cover_image: event.cover_image || null,
+        visibility: event.visibility || 'public',
+        club_id: event.club_id || null,
+        starts_at: new Date(event.starts_at_local).toISOString(),
+        ends_at: event.ends_at_local ? new Date(event.ends_at_local).toISOString() : null,
+      };
+      const res = await fetch(`/api/organizer/events/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Could not save event');
+      toast.success('Event updated');
+    } catch (err) {
+      toast.error(err.message || 'Could not save event');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function addTask(e) {
     e.preventDefault();
-    if (!newTask.title) return;
-    const { error } = await supabase.from('tasks').insert({
-      event_id: id, title: newTask.title, description: newTask.description, volunteers_needed: Number(newTask.volunteers_needed) || 1,
-    });
-    if (error) toast.error(error.message);
-    else { toast.success('Task added'); setNewTask({ title: '', description: '', volunteers_needed: 1 }); load(); }
+    if (!newTask.title.trim()) return;
+    try {
+      const res = await fetch(`/api/organizer/events/${id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTask.title,
+          description: newTask.description || null,
+          volunteers_needed: Number(newTask.volunteers_needed) || 1,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Could not add task');
+      toast.success('Task added');
+      setNewTask({ title: '', description: '', volunteers_needed: 1 });
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Could not add task');
+    }
   }
 
   async function deleteTask(taskId) {
-    if (!confirm('Delete this task and its volunteers?')) return;
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
-    if (error) toast.error(error.message); else { toast.success('Task deleted'); load(); }
+    const response = await fetch(`/api/organizer/events/${id}/tasks?taskId=${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+    const result = await response.json();
+    if (result.error) toast.error(result.error);
+    else { toast.success('Task deleted'); load(); }
   }
 
   async function removeVolunteer(signupId) {
-    if (!confirm('Remove this volunteer from the task?')) return;
     const { error } = await supabase.from('volunteer_signups').delete().eq('id', signupId);
-    if (error) toast.error(error.message); else { toast.success('Volunteer removed'); load(); }
+    if (error) toast.error('Could not remove volunteer');
+    else { toast.success('Volunteer removed'); load(); }
   }
 
-  if (loading || !event) return <div className="container py-16 text-center text-muted-foreground">Loading…</div>;
+  // ── Loading state
+  if (loading) {
+    return (
+      <div className="container max-w-4xl py-8 space-y-6">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // ── Error state (BUG-002 fix: was previously swallowed by loading || !event)
+  if (loadError) {
+    return (
+      <div className="container max-w-2xl py-16">
+        <ErrorState
+          title="Could not load event"
+          description={loadError}
+          onRetry={load}
+        />
+        <div className="mt-4 text-center">
+          <Link href="/dashboard/organizer">
+            <Button variant="outline">Back to dashboard</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Not found state
+  if (!event) {
+    return (
+      <div className="container max-w-2xl py-16">
+        <EmptyState
+          title="Event not found"
+          description="This event does not exist or you do not have permission to manage it."
+          action={<Link href="/dashboard/organizer"><Button variant="outline">Back to dashboard</Button></Link>}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="container py-8 max-w-4xl">
-      <Link href="/dashboard/organizer" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back to dashboard
+    <div className="container py-8 max-w-4xl animate-in-up">
+      <Link href="/dashboard/organizer" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back to dashboard
       </Link>
 
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-3xl font-bold">Manage event</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Manage event</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -124,17 +215,14 @@ function ManageEventPage({ params }) {
               const rows = signups.map((s) => {
                 const p = profiles[s.profile_id];
                 const t = tasks.find((tt) => tt.id === s.task_id);
-                return {
-                  name: p?.full_name || '',
-                  email: p?.email || '',
-                  task: t?.title || '',
-                  signed_up_at: s.signed_up_at,
-                };
+                return { name: p?.full_name || '', email: p?.email || '', task: t?.title || '', signed_up_at: s.signed_up_at };
               });
               if (!rows.length) { toast.error('No volunteers yet'); return; }
               downloadCSV(rows, `${event.title.replace(/\s+/g, '_')}_volunteers.csv`);
             }}
-          ><Download className="w-4 h-4" /> Volunteers CSV</Button>
+          >
+            <Download className="w-4 h-4" /> Volunteers CSV
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -142,16 +230,14 @@ function ManageEventPage({ params }) {
             onClick={() => {
               const rows = rsvps.map((r) => {
                 const p = profiles[r.profile_id];
-                return {
-                  name: p?.full_name || '',
-                  email: p?.email || '',
-                  rsvp_date: r.created_at,
-                };
+                return { name: p?.full_name || '', email: p?.email || '', rsvp_date: r.created_at };
               });
               if (!rows.length) { toast.error('No RSVPs yet'); return; }
               downloadCSV(rows, `${event.title.replace(/\s+/g, '_')}_attendees.csv`);
             }}
-          ><Download className="w-4 h-4" /> Attendees CSV</Button>
+          >
+            <Download className="w-4 h-4" /> Attendees CSV
+          </Button>
         </div>
       </div>
 
@@ -159,14 +245,32 @@ function ManageEventPage({ params }) {
         <CardHeader><CardTitle>Event details</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={saveEvent} className="space-y-4">
-            <div><Label>Title</Label><Input value={event.title} onChange={(e) => setEvent({ ...event, title: e.target.value })} /></div>
-            <div><Label>Description</Label><Textarea rows={3} value={event.description || ''} onChange={(e) => setEvent({ ...event, description: e.target.value })} /></div>
-            <div><Label>Location</Label><Input value={event.location || ''} onChange={(e) => setEvent({ ...event, location: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Starts</Label><Input type="datetime-local" value={event.starts_at_local} onChange={(e) => setEvent({ ...event, starts_at_local: e.target.value })} /></div>
-              <div><Label>Ends</Label><Input type="datetime-local" value={event.ends_at_local} onChange={(e) => setEvent({ ...event, ends_at_local: e.target.value })} /></div>
+            <div>
+              <Label htmlFor="ev-title">Title</Label>
+              <Input id="ev-title" value={event.title} onChange={(e) => setEvent({ ...event, title: e.target.value })} required />
             </div>
-            <div><Label>Cover image</Label><ImageUpload value={event.cover_image} onChange={(url) => setEvent({ ...event, cover_image: url })} /></div>
+            <div>
+              <Label htmlFor="ev-desc">Description</Label>
+              <Textarea id="ev-desc" rows={3} value={event.description || ''} onChange={(e) => setEvent({ ...event, description: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="ev-loc">Location</Label>
+              <Input id="ev-loc" value={event.location || ''} onChange={(e) => setEvent({ ...event, location: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="ev-starts">Starts</Label>
+                <Input id="ev-starts" type="datetime-local" value={event.starts_at_local} onChange={(e) => setEvent({ ...event, starts_at_local: e.target.value })} required />
+              </div>
+              <div>
+                <Label htmlFor="ev-ends">Ends</Label>
+                <Input id="ev-ends" type="datetime-local" value={event.ends_at_local} onChange={(e) => setEvent({ ...event, ends_at_local: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Cover image</Label>
+              <ImageUpload value={event.cover_image} onChange={(url) => setEvent({ ...event, cover_image: url })} />
+            </div>
             <div className="space-y-2">
               <Label>Visibility</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -180,7 +284,9 @@ function ManageEventPage({ params }) {
                 </label>
               </div>
             </div>
-            <Button type="submit" disabled={saving} className="gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}</Button>
+            <Button type="submit" disabled={saving} className="gap-2">
+              <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -189,16 +295,29 @@ function ManageEventPage({ params }) {
         <CardHeader><CardTitle>Add a volunteer task</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={addTask} className="space-y-3">
-            <div><Label>Task title</Label><Input value={newTask.title} onChange={(e) => setNewTask({ ...newTask, title: e.target.value })} placeholder="Registration desk" /></div>
-            <div><Label>Description</Label><Textarea rows={2} value={newTask.description} onChange={(e) => setNewTask({ ...newTask, description: e.target.value })} /></div>
-            <div><Label>Volunteers needed</Label><Input type="number" min={1} value={newTask.volunteers_needed} onChange={(e) => setNewTask({ ...newTask, volunteers_needed: e.target.value })} className="w-32" /></div>
+            <div>
+              <Label htmlFor="task-title">Task title</Label>
+              <Input id="task-title" value={newTask.title} onChange={(e) => setNewTask({ ...newTask, title: e.target.value })} placeholder="Registration desk" required />
+            </div>
+            <div>
+              <Label htmlFor="task-desc">Description</Label>
+              <Textarea id="task-desc" rows={2} value={newTask.description} onChange={(e) => setNewTask({ ...newTask, description: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="task-vol">Volunteers needed</Label>
+              <Input id="task-vol" type="number" min={1} max={1000} value={newTask.volunteers_needed} onChange={(e) => setNewTask({ ...newTask, volunteers_needed: e.target.value })} className="w-32" />
+            </div>
             <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> Add task</Button>
           </form>
         </CardContent>
       </Card>
 
       <Card className="mb-6">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Heart className="w-5 h-5 text-rose-500 fill-current" /> Attendees ({rsvps.length})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Heart className="w-5 h-5 text-rose-500 fill-current" aria-hidden="true" /> Attendees ({rsvps.length})
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           {rsvps.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No RSVPs yet.</p>
@@ -221,7 +340,7 @@ function ManageEventPage({ params }) {
         </CardContent>
       </Card>
 
-      <h2 className="text-xl font-semibold mb-3">Tasks & Volunteers</h2>
+      <h2 className="text-xl font-semibold mb-3">Tasks &amp; Volunteers</h2>
       {tasks.length === 0 ? (
         <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks yet.</CardContent></Card>
       ) : (
@@ -236,10 +355,14 @@ function ManageEventPage({ params }) {
                       <h3 className="font-semibold">{task.title}</h3>
                       {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
                       <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="secondary" className="gap-1"><Users className="w-3 h-3" /> {taskSignups.length} / {task.volunteers_needed}</Badge>
+                        <Badge variant="secondary" className="gap-1">
+                          <Users className="w-3 h-3" aria-hidden="true" /> {taskSignups.length} / {task.volunteers_needed}
+                        </Badge>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => deleteTask(task.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteTask(task.id)} className="text-destructive" aria-label={`Delete task: ${task.title}`}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                   {taskSignups.length > 0 && (
                     <div className="border-t pt-3 space-y-2">
