@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { ensureCurrentProfile } from '@/lib/profile';
-import { Sparkles, LogOut, LayoutDashboard, CalendarRange, Users, Menu } from 'lucide-react';
+import { Sparkles, LogOut, LayoutDashboard, CalendarRange, Users, Menu, Settings, Bell } from 'lucide-react';
 import ThemeToggle from '@/components/theme-toggle';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -144,6 +144,12 @@ export default function NavBar() {
                     </span>
                   )}
                 </span>
+                <Link href="/notifications" aria-label="Notifications" className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Bell className="h-3.5 w-3.5" />
+                </Link>
+                <Link href="/settings" aria-label="Settings" className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Settings className="h-3.5 w-3.5" />
+                </Link>
                 <button
                   onClick={signOut}
                   aria-label="Sign out"
@@ -237,9 +243,25 @@ export default function NavBar() {
                             {profile?.role && <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>}
                           </div>
                         </div>
-                        <Button variant="outline" className="w-full justify-start gap-2 rounded-xl" onClick={signOut}>
-                          <LogOut className="h-4 w-4" /> Sign out
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                          <SheetClose asChild>
+                            <Link href="/notifications" className="w-full">
+                              <Button variant="ghost" className="w-full justify-start gap-2 rounded-xl">
+                                <Bell className="h-4 w-4" /> Notifications
+                              </Button>
+                            </Link>
+                          </SheetClose>
+                          <SheetClose asChild>
+                            <Link href="/settings" className="w-full">
+                              <Button variant="ghost" className="w-full justify-start gap-2 rounded-xl">
+                                <Settings className="h-4 w-4" /> Account Settings
+                              </Button>
+                            </Link>
+                          </SheetClose>
+                          <Button variant="outline" className="w-full justify-start gap-2 rounded-xl" onClick={signOut}>
+                            <LogOut className="h-4 w-4" /> Sign out
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="grid gap-2">

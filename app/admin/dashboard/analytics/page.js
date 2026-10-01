@@ -10,63 +10,71 @@ import {
 } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import ErrorState from '@/components/error-state';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Users, CalendarDays, Heart, UserCheck } from 'lucide-react';
 import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
 
 /**
  * Bucket raw items into daily counts over a trailing window.
- * @param {Array<object>} items - Array of records with a date field.
- * @param {string} dateField - Key containing the ISO timestamp.
- * @param {number} days - Number of trailing days to include.
- * @returns {Array<{date: string, count: number}>}
  */
 function bucketByDay(items, dateField, days) {
   const now = new Date();
   const interval = eachDayOfInterval({ start: subDays(now, days - 1), end: now });
   const map = {};
   interval.forEach(d => { map[format(d, 'MMM d')] = 0; });
-  items.forEach(item => {
+  (items || []).forEach(item => {
     const key = format(startOfDay(new Date(item[dateField])), 'MMM d');
     if (map[key] !== undefined) map[key]++;
   });
   return Object.entries(map).map(([date, count]) => ({ date, count }));
 }
 
+function StatCard({ icon: Icon, label, value, sub, loading }) {
+  if (loading) return <Skeleton className="h-28 rounded-xl" />;
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm text-muted-foreground font-medium">{label}</p>
+          <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
+        </div>
+        <p className="text-3xl font-bold">{value ?? '—'}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [window, setWindow] = useState('30');
+  // eslint-disable-next-line no-unused-vars
+  const [timeWindow, setTimeWindow] = useState('30');
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await fetch(`/api/admin/analytics?days=${window}`, { cache: 'no-store' });
+      const res = await fetch(`/api/admin/analytics?days=${timeWindow}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Could not load analytics');
       const data = await res.json();
       setAnalytics(data.analytics);
+      setSummary(data.summary);
     } catch (err) {
       setError(err.message || 'Could not load analytics');
     } finally {
       setLoading(false);
     }
-  }, [window]);
+  }, [timeWindow]);
 
   useEffect(() => { load(); }, [load]);
 
-  const days = Number(window);
+  const days = Number(timeWindow);
 
-  const signupsData = analytics?.user_signups
-    ? bucketByDay(analytics.user_signups, 'created_at', days)
-    : [];
-
-  const eventsData = analytics?.events_created
-    ? bucketByDay(analytics.events_created, 'created_at', days)
-    : [];
-
-  const rsvpData = analytics?.rsvps
-    ? bucketByDay(analytics.rsvps, 'created_at', days)
-    : [];
+  const signupsData   = bucketByDay(analytics?.user_signups,        'created_at', days);
+  const eventsData    = bucketByDay(analytics?.events_created,       'created_at', days);
+  const rsvpData      = bucketByDay(analytics?.rsvps,               'created_at', days);
+  const volunteerData = bucketByDay(analytics?.volunteer_signups,    'created_at', days);
 
   if (error) {
     return (
@@ -85,8 +93,8 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold tracking-tight mt-1">Analytics</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={window} onValueChange={setWindow}>
-            <SelectTrigger className="w-32" aria-label="Select time window">
+          <Select value={timeWindow} onValueChange={setTimeWindow}>
+            <SelectTrigger className="w-36" aria-label="Select time window">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -101,10 +109,34 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* User Signups */}
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={Users} label="Total Users" loading={loading}
+          value={summary?.total_users?.toLocaleString()}
+          sub={summary?.new_users ? `+${summary.new_users} this period` : undefined}
+        />
+        <StatCard
+          icon={CalendarDays} label="Total Events" loading={loading}
+          value={summary?.total_events?.toLocaleString()}
+          sub={summary?.new_events ? `+${summary.new_events} this period` : undefined}
+        />
+        <StatCard
+          icon={Heart} label="Total RSVPs" loading={loading}
+          value={summary?.total_rsvps?.toLocaleString()}
+          sub={summary?.new_rsvps ? `+${summary.new_rsvps} this period` : undefined}
+        />
+        <StatCard
+          icon={UserCheck} label="Volunteer Signups" loading={loading}
+          value={summary?.total_clubs?.toLocaleString()}
+          sub={summary?.new_volunteer_signups ? `+${summary.new_volunteer_signups} this period` : undefined}
+        />
+      </div>
+
+      {/* User Signups chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">New user signups</CardTitle>
+          <CardTitle className="text-base">New user registrations</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -115,25 +147,15 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  labelStyle={{ fontWeight: 600 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="Signups"
-                  strokeWidth={2}
-                  dot={false}
-                  className="stroke-primary"
-                />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} labelStyle={{ fontWeight: 600 }} />
+                <Line type="monotone" dataKey="count" name="Signups" strokeWidth={2} dot={false} className="stroke-primary" />
               </LineChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      {/* Events Created */}
+      {/* Events Created chart */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Events created</CardTitle>
@@ -147,10 +169,7 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  labelStyle={{ fontWeight: 600 }}
-                />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} labelStyle={{ fontWeight: 600 }} />
                 <Bar dataKey="count" name="Events" radius={[4, 4, 0, 0]} className="fill-primary" />
               </BarChart>
             </ResponsiveContainer>
@@ -158,7 +177,7 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      {/* RSVPs */}
+      {/* RSVPs chart */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">RSVPs</CardTitle>
@@ -172,11 +191,30 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  labelStyle={{ fontWeight: 600 }}
-                />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} labelStyle={{ fontWeight: 600 }} />
                 <Bar dataKey="count" name="RSVPs" radius={[4, 4, 0, 0]} className="fill-primary/70" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Volunteer signups chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Volunteer signups</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-52 w-full rounded-lg" />
+          ) : (
+            <ResponsiveContainer width="100%" height={208}>
+              <BarChart data={volunteerData} margin={{ top: 4, right: 16, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} labelStyle={{ fontWeight: 600 }} />
+                <Bar dataKey="count" name="Signups" radius={[4, 4, 0, 0]} className="fill-emerald-500/70" />
               </BarChart>
             </ResponsiveContainer>
           )}

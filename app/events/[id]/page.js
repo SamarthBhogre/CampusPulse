@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Calendar, Clock3, MapPin, Users, ArrowLeft, CheckCircle2, Heart, Lock } from 'lucide-react';
+import { Calendar, Clock3, MapPin, Users, ArrowLeft, CheckCircle2, Heart, Lock, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import ErrorState from '@/components/error-state';
@@ -35,7 +35,7 @@ export default function EventDetailPage({ params }) {
       setUser(currentUser);
       const { data: ev, error: eventError } = await supabase
         .from('events')
-        .select('id, club_id, title, description, location, starts_at, ends_at, cover_image, visibility, created_by, clubs(name)')
+        .select('id, club_id, title, description, location, starts_at, ends_at, cover_image, visibility, created_by, status, clubs(name)')
         .eq('id', id)
         .maybeSingle();
       if (eventError) throw eventError;
@@ -172,6 +172,19 @@ export default function EventDetailPage({ params }) {
     );
   }
 
+  if (event.status === 'hidden') {
+    return (
+      <div className="container max-w-2xl py-16">
+        <EmptyState
+          icon={Calendar}
+          title="Event not available"
+          description="This event is not currently available."
+          action={<Link href="/events"><Button variant="outline">Back to events</Button></Link>}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-4xl py-6 sm:py-8 animate-in-up">
       <Link href="/events" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -189,6 +202,9 @@ export default function EventDetailPage({ params }) {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {event.clubs?.name && <Badge variant="secondary">{event.clubs.name}</Badge>}
+        {event.status === 'cancelled' && (
+          <Badge variant="destructive" className="text-sm font-semibold">Cancelled</Badge>
+        )}
         {event.visibility === 'club_only' && (
           <Badge variant="default" className="gap-1"><Lock className="h-3 w-3" /> Members only</Badge>
         )}
@@ -221,10 +237,16 @@ export default function EventDetailPage({ params }) {
       </div>
 
       <div className="mb-8 flex flex-wrap gap-3">
-        <Button onClick={toggleRsvp} disabled={rsvpBusy} variant={myRsvp ? 'secondary' : 'default'} size="lg" className="gap-2">
+        <Button onClick={toggleRsvp} disabled={rsvpBusy || event.status === 'cancelled'} variant={myRsvp ? 'secondary' : 'default'} size="lg" className="gap-2">
           <Heart className={cn('h-4 w-4', myRsvp && 'fill-current')} aria-hidden="true" />
           {rsvpBusy ? 'Saving…' : myRsvp ? "You're attending" : "I'll be there"}
         </Button>
+        <a href={`/api/events/${id}/calendar`} download={`event-${id}.ics`}>
+          <Button variant="outline" size="lg" className="gap-2">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+            Add to calendar
+          </Button>
+        </a>
         {tasks.length > 0 && (
           <a href="#tasks">
             <Button variant="outline" size="lg">See volunteer tasks</Button>
@@ -281,11 +303,11 @@ export default function EventDetailPage({ params }) {
                     </div>
                     <div className="sm:shrink-0">
                       {mySignup ? (
-                        <Button variant="outline" size="sm" onClick={() => withdraw(mySignup.id, task.id)} disabled={actionId === mySignup.id}>
+                        <Button variant="outline" size="sm" onClick={() => withdraw(mySignup.id, task.id)} disabled={actionId === mySignup.id || event.status === 'cancelled'}>
                           {actionId === mySignup.id ? 'Withdrawing…' : 'Withdraw'}
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => volunteer(task.id)} disabled={isFull || actionId === task.id} variant={isFull ? 'secondary' : 'default'}>
+                        <Button size="sm" onClick={() => volunteer(task.id)} disabled={isFull || actionId === task.id || event.status === 'cancelled'} variant={isFull ? 'secondary' : 'default'}>
                           {isFull ? 'Task full' : actionId === task.id ? 'Signing up…' : 'Volunteer'}
                         </Button>
                       )}

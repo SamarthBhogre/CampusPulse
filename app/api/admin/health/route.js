@@ -26,7 +26,9 @@ export async function GET() {
     overallOk = false;
   }
 
-  if (!checks.database.status === 'ok') overallOk = false;
+  if (checks.database.status !== 'ok') overallOk = false;
+  if (checks.storage.status !== 'ok') overallOk = false;
+
 
   return NextResponse.json({
     status: overallOk ? 'ok' : 'degraded',
