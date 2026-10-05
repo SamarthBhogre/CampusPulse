@@ -4,6 +4,15 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.1] — 2026-10-05 — System Health Dashboard Fix
+
+- Fixed the admin System Health page reading `health` while the API returned
+  `checks`, which left the checks grid empty.
+- Added database and Storage latency values and ensured degraded health details
+  remain visible with a successful API response.
+
+---
+
 ## [2.1.0] — 2026-10-05 — Organizer Review & Club Management
 
 ### ✨ New Features

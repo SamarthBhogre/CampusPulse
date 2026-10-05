@@ -10,19 +10,25 @@ export async function GET() {
 
   // Database connectivity
   try {
+    const startedAt = Date.now();
     const { error } = await auth.admin.from('profiles').select('id').limit(1).maybeSingle();
-    checks.database = error ? { status: 'error', message: 'Query failed' } : { status: 'ok' };
+    checks.database = error
+      ? { status: 'down', detail: 'Database query failed', message: error.message }
+      : { status: 'ok', latency_ms: Date.now() - startedAt };
   } catch {
-    checks.database = { status: 'error', message: 'Connection failed' };
+    checks.database = { status: 'down', detail: 'Database connection failed' };
     overallOk = false;
   }
 
   // Storage connectivity
   try {
+    const startedAt = Date.now();
     const { error } = await auth.admin.storage.listBuckets();
-    checks.storage = error ? { status: 'error', message: error.message } : { status: 'ok' };
+    checks.storage = error
+      ? { status: 'down', detail: 'Storage query failed', message: error.message }
+      : { status: 'ok', latency_ms: Date.now() - startedAt };
   } catch {
-    checks.storage = { status: 'error', message: 'Storage unavailable' };
+    checks.storage = { status: 'down', detail: 'Storage unavailable' };
     overallOk = false;
   }
 
@@ -33,6 +39,8 @@ export async function GET() {
   return NextResponse.json({
     status: overallOk ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
+    // `health` is the page-facing name; retain `checks` for API consumers.
+    health: checks,
     checks,
-  }, { status: overallOk ? 200 : 503 });
+  }, { status: 200 });
 }

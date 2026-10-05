@@ -65,9 +65,10 @@ export default function SystemHealthPage() {
     setLoading(true); setError('');
     try {
       const res = await fetch('/api/admin/health', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Could not load system health');
       const data = await res.json();
-      setHealth(data.health);
+      const checks = data.health || data.checks;
+      if (!checks) throw new Error(data.error || 'Could not load system health');
+      setHealth(checks);
       setLastChecked(new Date());
     } catch (err) {
       setError(err.message || 'Could not load system health');
@@ -147,7 +148,7 @@ export default function SystemHealthPage() {
                 label={key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 status={value?.status}
                 latencyMs={value?.latency_ms}
-                detail={value?.detail}
+                detail={value?.detail || value?.message}
               />
             ))
           ) : null}
