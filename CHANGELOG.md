@@ -4,6 +4,13 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.4] — 2026-10-05 — Mumbai Function Region
+
+- Configured Vercel Functions to run in Mumbai (`bom1`) to reduce latency for
+  the India-based Supabase deployment and users.
+
+---
+
 ## [2.1.3] — 2026-10-05 — Admin Club Listing Fix
 
 ### 🐛 Bug Fixes
