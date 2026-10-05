@@ -14,7 +14,7 @@ export async function GET(request) {
   try {
     let query = auth.admin
       .from('clubs')
-      .select('id, name, description, created_at', { count: 'exact' })
+      .select('id, name, description, created_at, club_managers(profile_id, public_profiles(full_name, username))', { count: 'exact' })
       .order('name')
       .range(page * pageSize, page * pageSize + pageSize - 1);
     if (search.trim()) query = query.ilike('name', `%${search.trim()}%`);
@@ -26,7 +26,7 @@ export async function GET(request) {
     const countMap = {};
     (counts || []).forEach(r => { countMap[r.club_id] = Number(r.member_count); });
 
-    const clubs = (data || []).map(c => ({ ...c, member_count: countMap[c.id] || 0 }));
+    const clubs = (data || []).map(c => ({ ...c, member_count: countMap[c.id] || 0, managers: (c.club_managers || []).map(m => m.public_profiles).filter(Boolean) }));
     return NextResponse.json({ clubs, total: count || 0, page, pageSize });
   } catch (err) {
     logger.error('Admin clubs list failed', err);

@@ -25,14 +25,14 @@ export async function PATCH(request, { params }) {
     .maybeSingle();
 
   const payload = action === 'approve'
-    ? { role: 'organizer', organizer_request_status: 'approved' }
-    : { role: 'student', organizer_request_status: 'rejected' };
+    ? { role: 'organizer', organizer_request_status: 'approved', organizer_rejection_reason: null }
+    : { role: 'student', organizer_request_status: 'rejected', organizer_rejection_reason: String(body.rejection_reason || '').trim() || 'The application did not meet the current organizer requirements.' };
 
   const { data, error } = await auth.admin
     .from('profiles')
     .update(payload)
     .eq('id', id)
-    .select('id, email, full_name, role, organizer_request_status, organizer_requested_at')
+    .select('id, email, full_name, role, organizer_request_status, organizer_rejection_reason, organizer_requested_at')
     .single();
 
   if (error) {

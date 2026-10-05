@@ -46,10 +46,11 @@ export default function OrganizersPage() {
   async function decide(id, action) {
     setBusyId(id);
     try {
+      const rejection_reason = action === 'reject' ? (window.prompt('Optional reason for rejection:') || '') : '';
       const res = await fetch(`/api/admin/organizer-requests/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, rejection_reason }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || `Could not ${action}`);
@@ -125,10 +126,10 @@ export default function OrganizersPage() {
                 <TableBody>
                   {requests.map((req) => (
                     <TableRow key={req.id}>
-                      <TableCell className="pl-6 font-medium">{req.full_name || '—'}</TableCell>
+                      <TableCell className="pl-6 font-medium"><div>{req.full_name || '—'}</div>{req.organizer_org_name && <div className="text-xs font-normal text-muted-foreground">{req.organizer_org_name} · {req.organizer_org_type}</div>}{req.organizer_org_description && <details className="mt-1 max-w-xs text-xs font-normal"><summary className="cursor-pointer text-primary">View application details</summary><p className="mt-1 text-muted-foreground">{req.organizer_org_description}</p>{req.organizer_experience && <p className="mt-1 text-muted-foreground"><span className="font-medium text-foreground">Experience:</span> {req.organizer_experience}</p>}{req.organizer_org_website && <a className="mt-1 block text-primary hover:underline" href={req.organizer_org_website} target="_blank" rel="noreferrer">Open organization link</a>}</details>}</TableCell>
                       <TableCell className="text-muted-foreground">{req.email}</TableCell>
                       <TableCell><StatusBadge status={req.organizer_request_status} /></TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(req.organizer_requested_at)}</TableCell>
+                      <TableCell className="text-muted-foreground"><div>{formatDate(req.organizer_requested_at)}</div>{req.organizer_rejection_reason && <div className="max-w-xs text-xs text-destructive">{req.organizer_rejection_reason}</div>}</TableCell>
                       <TableCell className="pr-6 text-right">
                         {req.organizer_request_status === 'pending' ? (
                           <div className="flex justify-end gap-2">

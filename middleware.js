@@ -13,6 +13,12 @@ const SUSPENSION_ALLOWED = [
   '/suspended',
 ];
 
+const ORGANIZER_REVIEW_ALLOWED = [
+  '/', '/events', '/clubs', '/organizer/status',
+  '/auth/sign-in', '/auth/sign-up', '/auth/forgot-password',
+  '/auth/update-password', '/auth/callback', '/auth/confirm',
+];
+
 export async function middleware(request) {
   let response = NextResponse.next({ request });
   const { pathname } = request.nextUrl;
@@ -58,6 +64,20 @@ export async function middleware(request) {
       const suspendedUrl = new URL('/suspended', request.url);
       return NextResponse.redirect(suspendedUrl);
     }
+  }
+
+  // Applicants who are waiting for or were denied organizer access remain
+  // normal authenticated users, but may only browse events/clubs and view the
+  // application status page until an admin approves them.
+  if (user && !pathname.startsWith('/api/') && !pathname.startsWith('/admin') && !pathname.startsWith('/_next')) {
+    const { data: application } = await supabase
+      .from('profiles')
+      .select('role, organizer_request_status')
+      .eq('id', user.id)
+      .maybeSingle();
+    const restricted = application?.role !== 'organizer' && ['pending', 'rejected'].includes(application?.organizer_request_status);
+    const allowed = ORGANIZER_REVIEW_ALLOWED.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+    if (restricted && (!allowed || pathname === '/clubs/request')) return NextResponse.redirect(new URL('/organizer/status', request.url));
   }
 
   return response;

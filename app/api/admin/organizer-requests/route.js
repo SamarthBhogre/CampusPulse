@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data, error } = await auth.admin
     .from('profiles')
-    .select('id, email, full_name, role, organizer_request_status, organizer_requested_at, created_at')
+    .select('id, email, full_name, role, organizer_request_status, organizer_requested_at, organizer_rejection_reason, organizer_org_name, organizer_org_type, organizer_org_website, organizer_org_description, organizer_experience, created_at')
     .in('organizer_request_status', ['pending', 'approved', 'rejected'])
     .order('organizer_requested_at', { ascending: false, nullsFirst: false })
     .limit(100);

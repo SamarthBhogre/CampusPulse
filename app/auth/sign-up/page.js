@@ -17,13 +17,14 @@ function SignUpPage() {
   const supabase = getSupabaseBrowserClient();
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', account_type: 'student' });
+  const [form, setForm] = useState({ full_name: '', email: '', password: '', account_type: 'student', organization_name: '', organization_type: '', organization_website: '', organization_description: '', organizer_experience: '' });
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
-      const emailRedirectTo = getAuthRedirectUrl('/auth/confirm?next=/dashboard');
+      const nextPath = form.account_type === 'organizer' ? '/organizer/status' : '/dashboard';
+      const emailRedirectTo = getAuthRedirectUrl(`/auth/confirm?next=${encodeURIComponent(nextPath)}`);
       const { data, error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
@@ -31,6 +32,11 @@ function SignUpPage() {
           data: {
             full_name: form.full_name.trim(),
             requested_role: form.account_type,
+            organizer_org_name: form.organization_name.trim(),
+            organizer_org_type: form.organization_type,
+            organizer_org_website: form.organization_website.trim(),
+            organizer_org_description: form.organization_description.trim(),
+            organizer_experience: form.organizer_experience.trim(),
           },
           emailRedirectTo,
         },
@@ -120,9 +126,14 @@ function SignUpPage() {
                 </button>
               </div>
               {form.account_type === 'organizer' && (
-                <p className="text-xs text-muted-foreground">
-                  Organizer access needs admin approval after signup. Your account starts safely as a student.
-                </p>
+                <div className="mt-4 space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-xs text-muted-foreground">Organizer access requires a short review. Please provide enough information for an administrator to verify your request.</p>
+                  <div className="space-y-2"><Label htmlFor="organization_name">Organization / company name</Label><Input id="organization_name" required value={form.organization_name} onChange={(e) => setForm({ ...form, organization_name: e.target.value })} placeholder="e.g. Computer Science Society" /></div>
+                  <div className="space-y-2"><Label htmlFor="organization_type">Organization type</Label><select id="organization_type" required value={form.organization_type} onChange={(e) => setForm({ ...form, organization_type: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select type</option><option>Student club</option><option>College department</option><option>Company</option><option>Non-profit</option><option>Community group</option><option>Other</option></select></div>
+                  <div className="space-y-2"><Label htmlFor="organization_website">Public website or profile (optional)</Label><Input id="organization_website" type="url" value={form.organization_website} onChange={(e) => setForm({ ...form, organization_website: e.target.value })} placeholder="https://..." /></div>
+                  <div className="space-y-2"><Label htmlFor="organization_description">What does the organization do?</Label><textarea id="organization_description" required minLength={20} rows={3} value={form.organization_description} onChange={(e) => setForm({ ...form, organization_description: e.target.value })} placeholder="Describe your organization and the events you plan to host." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring" /></div>
+                  <div className="space-y-2"><Label htmlFor="organizer_experience">Relevant organizing experience</Label><textarea id="organizer_experience" required minLength={10} rows={3} value={form.organizer_experience} onChange={(e) => setForm({ ...form, organizer_experience: e.target.value })} placeholder="Tell us about events or communities you have organized." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring" /></div>
+                </div>
               )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

@@ -19,6 +19,7 @@ const navItems = [
   { href: '/admin/dashboard/users', label: 'Users', icon: Users },
   { href: '/admin/dashboard/events', label: 'Events', icon: Calendar },
   { href: '/admin/dashboard/clubs', label: 'Clubs', icon: Building2 },
+  { href: '/admin/dashboard/club-requests', label: 'Club Requests', icon: Building2 },
   { href: '/admin/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/dashboard/audit-log', label: 'Audit Log', icon: ClipboardList },
   { href: '/admin/dashboard/system-health', label: 'System Health', icon: Activity },

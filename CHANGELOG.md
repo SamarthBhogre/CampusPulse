@@ -4,6 +4,34 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.0] — 2026-10-05 — Organizer Review & Club Management
+
+### ✨ New Features
+
+- Added organizer applications with organization name/type, website, description,
+  and previous organizing experience.
+- Added pending-review and rejected-application screens. Applicants can browse
+  events and clubs while access is under review.
+- Added permanent account/data deletion for rejected organizer applicants.
+- Added student club creation requests with admin approval and automatic first
+  manager/member assignment.
+- Added club manager assignments and admin club-request management.
+- Added repeatable demo-data generation for users, clubs, events, memberships,
+  RSVPs, tasks, and volunteer signups.
+- Added Supabase Storage bucket/RLS setup for event cover image uploads.
+
+### 🔒 Security
+
+- Organizer applicants remain students until explicitly approved by an admin.
+- Middleware restricts pending/rejected applicants from dashboards and other
+  application areas.
+- Club request approval is transactional and creates the club, manager, and
+  initial membership together.
+- Permanent deletion removes rejected applicants' profile, requests,
+  memberships, participation records, and Auth account.
+
+---
+
 ## [2.0.0] — 2026-10-01 — Production Hardening
 
 This release takes CampusPulse from MVP/pre-production to a production-ready state.

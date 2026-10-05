@@ -21,13 +21,31 @@ export async function DELETE(request) {
   const admin = getSupabaseAdminClient();
 
   try {
+    if (body.permanent === true) {
+      const { data: profile } = await admin.from('profiles').select('organizer_request_status, role').eq('id', user.id).maybeSingle();
+      if (!profile || (profile.organizer_request_status !== 'rejected' && profile.role !== 'student')) {
+        return NextResponse.json({ error: 'Permanent deletion is only available for rejected organizer applications.' }, { status: 403 });
+      }
+      // Explicitly remove user-owned application and participation data first;
+      // Auth deletion then cascades the profile and any owned events.
+      await admin.from('club_creation_requests').delete().eq('requester_id', user.id);
+      await admin.from('club_managers').delete().eq('profile_id', user.id);
+      await admin.from('club_members').delete().eq('profile_id', user.id);
+      await admin.from('event_rsvps').delete().eq('profile_id', user.id);
+      await admin.from('volunteer_signups').delete().eq('profile_id', user.id);
+      const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
+      if (deleteError) throw deleteError;
+      logger.info('Rejected applicant permanently deleted', { userId: user.id });
+      return NextResponse.json({ ok: true, permanent: true });
+    }
+
     // 1. Anonymize profile — preserve ID for referential integrity
     await admin.from('profiles').update({
       full_name: '[Deleted User]',
       username: null,
       email: `deleted_${user.id}@deleted.invalid`,
       avatar_url: null,
-      organizer_request_status: null,
+      organizer_request_status: 'none',
       is_suspended: false,
     }).eq('id', user.id);
 

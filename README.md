@@ -49,10 +49,23 @@ Run in this order:
 7. `supabase/migrations/007_admin_role.sql`
 8. `supabase/migrations/008_query_hardening.sql`
 9. `supabase/migrations/009_privacy_aggregates.sql`
+10. `supabase/migrations/010_club_only_rsvp_enforcement.sql`
+11. `supabase/migrations/011_events_page_rpc.sql`
+12. `supabase/migrations/012_attendance_audit_notifications.sql`
+13. `supabase/migrations/013_profiles_is_suspended.sql`
+14. `supabase/migrations/014_fix_public_profiles_security_invoker.sql`
+15. `supabase/migrations/015_username_privacy_moderation.sql`
+16. `supabase/migrations/016_event_covers_storage.sql`
+17. `supabase/migrations/017_club_creation_workflow.sql`
+18. `supabase/migrations/018_organizer_application_details.sql`
 
 Fallback for partial 006/007 setup:
 
 - `supabase/migrations/006_007_admin_setup_combined.sql`
+
+The final migration creates/configures the public `event-covers` Storage bucket
+and allows signed-in users to upload only into their own folder. Run it in the
+Supabase SQL Editor if image uploads currently return a Storage/RLS error.
 
 ## Deploy
 
@@ -62,4 +75,24 @@ Set these in Vercel project environment variables and deploy:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_APP_URL=https://campus-pulse-sable.vercel.app`
+
+## Generate demo data
+
+With `.env.local` configured, run:
+
+```bash
+node scripts/generate-demo-data.mjs
+```
+
+The defaults create 100 demo accounts, 15 clubs, and 120 events, plus random
+club memberships, RSVPs, volunteer tasks, and capacity-safe volunteer signups.
+Adjust the size with `--users`, `--clubs`, and `--events`, for example:
+
+```bash
+node scripts/generate-demo-data.mjs --users 250 --clubs 25 --events 400
+```
+
+Demo accounts use emails such as `demo.0001@campus-pulse.test` and the password
+`CampusDemo123!`, unless `DEMO_USER_PASSWORD` is set. The generator can be
+rerun without duplicating matching demo accounts, clubs, or participation rows.
 

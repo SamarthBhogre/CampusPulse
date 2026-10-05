@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { Users, ArrowRight, Check, CalendarRange } from 'lucide-react';
+import { Users, ArrowRight, Check, CalendarRange, Plus } from 'lucide-react';
 import PageHeader from '@/components/page-header';
 import EmptyState from '@/components/empty-state';
 import ErrorState from '@/components/error-state';
@@ -73,6 +73,7 @@ export default function ClubsPage() {
         eyebrow="Find your people"
         title="Campus clubs"
         description="Join a community, discover member-only events, and stay in the loop."
+        action={user ? <Link href="/clubs/request"><Button className="gap-2"><Plus className="h-4 w-4" /> Propose a club</Button></Link> : null}
         className="animate-in-up"
       />
 

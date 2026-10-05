@@ -82,7 +82,8 @@ export default function AdminClubsPage() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-6">Name</TableHead>
-                  <TableHead>Members</TableHead>
+                    <TableHead>Managers</TableHead>
+                    <TableHead>Members</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
@@ -91,12 +92,13 @@ export default function AdminClubsPage() {
                 {loading ? (
                   [1, 2, 3, 4, 5].map(i => (
                     <TableRow key={i}>
-                      <TableCell colSpan={4}><Skeleton className="h-8 w-full" /></TableCell>
+                      <TableCell colSpan={5}><Skeleton className="h-8 w-full" /></TableCell>
                     </TableRow>
                   ))
                 ) : clubs.map(c => (
                   <TableRow key={c.id}>
                     <TableCell className="pl-6 font-medium">{c.name}</TableCell>
+                    <TableCell className="text-sm">{c.managers?.length ? c.managers.map((manager) => manager.full_name || manager.username).join(', ') : '—'}</TableCell>
                     <TableCell>{c.member_count}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{c.description || '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
