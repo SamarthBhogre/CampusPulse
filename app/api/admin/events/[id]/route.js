@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
 import { logger } from '@/lib/logger';
+import { enqueueNotification, NOTIFICATION_TYPES } from '@/lib/notifications';
 
 export async function PATCH(request, { params }) {
   const auth = await requireAdmin();
@@ -27,6 +28,20 @@ export async function PATCH(request, { params }) {
       .from('events').update({ status: newStatus }).eq('id', id)
       .select('id, title, status').single();
     if (error) throw error;
+
+    if (action === 'cancel') {
+      const [{ data: rsvps }, { data: volunteers }] = await Promise.all([
+        auth.admin.from('event_rsvps').select('profile_id').eq('event_id', id),
+        auth.admin.from('volunteer_signups').select('profile_id').eq('event_id', id),
+      ]);
+      const recipientIds = new Set([...(rsvps || []), ...(volunteers || [])].map((row) => row.profile_id));
+      for (const recipientId of recipientIds) {
+        void enqueueNotification(recipientId, NOTIFICATION_TYPES.EVENT_CANCELLED, {
+          event_id: id,
+          event_title: prev.title,
+        });
+      }
+    }
 
     await auth.admin.rpc('write_audit_log', {
       p_action: `event_${action}`,

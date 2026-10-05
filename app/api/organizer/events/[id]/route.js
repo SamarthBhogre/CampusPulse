@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireOrganizer } from '@/lib/organizer-auth';
 import { eventInputSchema } from '@/lib/validation/events';
 import { logger } from '@/lib/logger';
+import { enqueueNotification, NOTIFICATION_TYPES } from '@/lib/notifications';
 
 async function getOwnedEvent(auth, id) {
   const { data, error } = await auth.admin
@@ -77,6 +78,17 @@ export async function PATCH(request, { params }) {
   if (error) {
     logger.error('Organizer event update failed', error, { eventId: id, userId: auth.user.id });
     return NextResponse.json({ error: 'Could not update event' }, { status: 500 });
+  }
+  const [{ data: rsvps }, { data: volunteers }] = await Promise.all([
+    auth.admin.from('event_rsvps').select('profile_id').eq('event_id', id),
+    auth.admin.from('volunteer_signups').select('profile_id').eq('event_id', id),
+  ]);
+  const recipientIds = new Set([...(rsvps || []), ...(volunteers || [])].map((row) => row.profile_id));
+  for (const recipientId of recipientIds) {
+    void enqueueNotification(recipientId, NOTIFICATION_TYPES.EVENT_UPDATED, {
+      event_id: id,
+      event_title: data.title,
+    });
   }
   return NextResponse.json({ event: data });
 }

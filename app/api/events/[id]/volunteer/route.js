@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { enqueueNotification, NOTIFICATION_TYPES } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 
 /**
@@ -39,6 +41,21 @@ export async function POST(request, { params }) {
 
     logger.error('Volunteer toggle failed', error, { userId: user.id, eventId, taskId });
     return NextResponse.json({ error: userMsg }, { status: 400 });
+  }
+
+  if (data?.action === 'added') {
+    const admin = getSupabaseAdminClient();
+    const [{ data: event }, { data: task }, { data: actor }] = await Promise.all([
+      admin.from('events').select('title, created_by').eq('id', eventId).maybeSingle(),
+      admin.from('tasks').select('title').eq('id', taskId).maybeSingle(),
+      admin.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    ]);
+    if (event) {
+      void enqueueNotification(user.id, NOTIFICATION_TYPES.VOLUNTEER_CONFIRMATION, { event_id: eventId, event_title: event.title, task_title: task?.title });
+      if (event.created_by && event.created_by !== user.id) {
+        void enqueueNotification(event.created_by, NOTIFICATION_TYPES.VOLUNTEER_RECEIVED, { event_id: eventId, event_title: event.title, task_title: task?.title, actor_name: actor?.full_name || 'A student' });
+      }
+    }
   }
 
   return NextResponse.json({ result: data });

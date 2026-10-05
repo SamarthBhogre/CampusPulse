@@ -4,6 +4,27 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.2] — 2026-10-05 — Health Checks & Notifications
+
+### ✨ New Features
+
+- Expanded admin System Health with Auth, event-covers bucket configuration,
+  schema, critical RPC, deployment-version, and latency checks.
+- Added user RSVP and volunteer confirmation notifications.
+- Added organizer notifications when users RSVP or volunteer for their events.
+- Added participant notifications for organizer event updates and admin event
+  cancellations.
+- Added a notification test utility for validating student and organizer inboxes.
+
+### 🐛 Bug Fixes
+
+- Fixed the System Health page/API response mismatch that left the checks grid
+  empty.
+- Degraded health responses now remain visible instead of being hidden by a
+  generic error state.
+
+---
+
 ## [2.1.1] — 2026-10-05 — System Health Dashboard Fix
 
 - Fixed the admin System Health page reading `health` while the API returned
