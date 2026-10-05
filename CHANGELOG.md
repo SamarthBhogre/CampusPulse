@@ -4,6 +4,16 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.3] — 2026-10-05 — Admin Club Listing Fix
+
+### 🐛 Bug Fixes
+
+- Fixed the admin clubs API returning HTTP 500 when loading manager names by
+  replacing the unsupported `public_profiles` relationship embed with explicit
+  manager and profile lookups.
+
+---
+
 ## [2.1.2] — 2026-10-05 — Health Checks & Notifications
 
 ### ✨ New Features
