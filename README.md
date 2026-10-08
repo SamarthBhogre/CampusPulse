@@ -58,6 +58,7 @@ Run in this order:
 16. `supabase/migrations/016_event_covers_storage.sql`
 17. `supabase/migrations/017_club_creation_workflow.sql`
 18. `supabase/migrations/018_organizer_application_details.sql`
+19. `supabase/migrations/019_required_usernames.sql`
 
 Fallback for partial 006/007 setup:
 

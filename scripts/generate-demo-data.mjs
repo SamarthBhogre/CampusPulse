@@ -42,6 +42,7 @@ function random() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x
 function pick(items) { return items[Math.floor(random() * items.length)]; }
 function sample(items, count) { return [...items].sort(() => random() - 0.5).slice(0, Math.min(count, items.length)); }
 function chunks(items, size = 500) { const result = []; for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size)); return result; }
+function demoUsername(index) { return `demo_${String(index).padStart(4, '0')}`; }
 async function upsertRows(table, rows, onConflict) {
   for (const group of chunks(rows)) {
     if (!group.length) continue;
@@ -81,11 +82,11 @@ for (let index = 1; index <= counts.users; index += 1) {
   const fullName = `${pick(firstNames)} ${pick(lastNames)}`;
   let user = existingUsers.get(email);
   if (!user) {
-    const result = await supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
+    const result = await supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName, username: demoUsername(index) } });
     if (result.error) throw result.error;
     user = result.data.user;
   }
-  profiles.push({ id: user.id, email, full_name: user.user_metadata?.full_name || fullName, role: index <= organizerCount ? 'organizer' : 'student', organizer_request_status: index <= organizerCount ? 'approved' : 'none' });
+  profiles.push({ id: user.id, email, full_name: user.user_metadata?.full_name || fullName, username: demoUsername(index), role: index <= organizerCount ? 'organizer' : 'student', organizer_request_status: index <= organizerCount ? 'approved' : 'none' });
 }
 await upsertRows('profiles', profiles, 'id');
 const organizers = profiles.slice(0, organizerCount);
@@ -142,6 +143,17 @@ const eligible = (event, profile) => event.visibility === 'public' || event.crea
 const rsvps = [];
 for (const event of events) for (const profile of sample(profiles, 8 + Math.floor(random() * 35))) if (eligible(event, profile)) rsvps.push({ event_id: event.id, profile_id: profile.id });
 await upsertRows('event_rsvps', rsvps, 'event_id,profile_id');
+
+// Keep the primary demo account visibly active across several public events.
+// This is deterministic for repeatable demo runs while still selecting a
+// varied set from the seeded event list.
+const featuredUser = existingUsers.get('smbhogre@gmail.com');
+if (featuredUser) {
+  const featuredEvents = sample(events.filter((event) => event.visibility === 'public'), Math.min(8, Math.max(5, Math.floor(events.length / 15))));
+  const featuredRsvps = featuredEvents.map((event) => ({ event_id: event.id, profile_id: featuredUser.id }));
+  await upsertRows('event_rsvps', featuredRsvps, 'event_id,profile_id');
+  console.log(`- Added ${featuredRsvps.length} randomized RSVPs for smbhogre@gmail.com`);
+}
 
 const signups = [];
 for (const task of tasks) {

@@ -17,7 +17,7 @@ function SignUpPage() {
   const supabase = getSupabaseBrowserClient();
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', account_type: 'student', organization_name: '', organization_type: '', organization_website: '', organization_description: '', organizer_experience: '' });
+  const [form, setForm] = useState({ full_name: '', username: '', email: '', password: '', account_type: 'student', organization_name: '', organization_type: '', organization_website: '', organization_description: '', organizer_experience: '' });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,6 +31,7 @@ function SignUpPage() {
         options: {
           data: {
             full_name: form.full_name.trim(),
+            username: form.username.trim().toLowerCase(),
             requested_role: form.account_type,
             organizer_org_name: form.organization_name.trim(),
             organizer_org_type: form.organization_type,
@@ -90,6 +91,11 @@ function SignUpPage() {
             <div className="space-y-2">
               <Label htmlFor="full_name">Full name</Label>
               <Input id="full_name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Ada Lovelace" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" required minLength={3} maxLength={30} pattern="[a-zA-Z0-9_.-]+" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })} placeholder="yourhandle" />
+              <p className="text-xs text-muted-foreground">3–30 characters: letters, numbers, underscores, hyphens, or periods.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

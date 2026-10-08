@@ -4,6 +4,29 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.6] — 2026-10-08 — Required Usernames & Demo Participation
+
+### ✨ New Features
+
+- Usernames are now required during account creation and in the database.
+- Existing profiles receive collision-safe usernames during migration 019 and
+  can update them from Settings.
+- Demo accounts receive deterministic usernames such as `demo_0001`.
+- The demo generator assigns `smbhogre@gmail.com` several randomized public
+  event RSVPs when that account exists.
+
+### 🔒 Security
+
+- New-user profile creation rejects missing, invalid, or duplicate usernames.
+- Username clearing is disabled after the required-username migration.
+
+### ✅ Tests
+
+- Added coverage for required usernames, signup metadata, migration backfill,
+  and demo participation. The security suite passes 101/101 tests.
+
+---
+
 ## [2.1.5] — 2026-10-08 — Organizer Event Announcements
 
 ### ✨ New Features

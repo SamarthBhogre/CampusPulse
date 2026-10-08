@@ -88,7 +88,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: displayName.trim() || undefined,
-          username: username.trim() || undefined,
+          username: username.trim(),
         }),
       });
       const data = await res.json();
@@ -201,7 +201,7 @@ export default function SettingsPage() {
             <div className="space-y-1.5">
               <Label htmlFor="username">
                 Username
-                <span className="ml-2 text-xs text-muted-foreground">optional · 3–30 chars, letters/numbers/_.-</span>
+                <span className="ml-2 text-xs text-muted-foreground">required · 3–30 chars, letters/numbers/_.-</span>
               </Label>
               <div className="relative">
                 <AtSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -212,7 +212,8 @@ export default function SettingsPage() {
                   placeholder="yourhandle"
                   className="pl-9"
                   maxLength={30}
-                  pattern="[a-zA-Z0-9_.\-]*"
+                  pattern="[a-zA-Z0-9_.\-]+"
+                  required
                 />
               </div>
               <p className="text-xs text-muted-foreground">Usernames are public and unique across CampusPulse.</p>

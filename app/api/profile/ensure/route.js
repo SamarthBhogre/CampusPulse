@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: existing, error: readError } = await supabase
     .from('profiles')
-    .select('id, email, full_name, role, created_at')
+    .select('id, email, full_name, username, role, created_at')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -37,15 +37,17 @@ export async function GET() {
   );
 
   const fallbackName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Campus Pulse user';
+  const fallbackUsername = `user_${user.id.replace(/-/g, '').slice(0, 12)}`;
   const { data: repaired, error: repairError } = await admin
     .from('profiles')
     .upsert({
       id: user.id,
       email: user.email,
       full_name: fallbackName,
+      username: fallbackUsername,
       role: 'student',
     }, { onConflict: 'id' })
-    .select('id, email, full_name, role, created_at')
+    .select('id, email, full_name, username, role, created_at')
     .single();
 
   if (repairError) {

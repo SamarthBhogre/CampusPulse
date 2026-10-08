@@ -366,6 +366,26 @@ describe('Database migrations', () => {
     const sql = read('supabase/migrations/015_username_privacy_moderation.sql');
     assert.ok(sql.includes('lower('), 'Username uniqueness must be case-insensitive using lower()');
   });
+
+  test('migration 019 requires and backfills usernames', () => {
+    const sql = read('supabase/migrations/019_required_usernames.sql');
+    assert.ok(sql.includes('alter column username set not null'), 'Username must be required');
+    assert.ok(sql.includes('where username is null'), 'Existing missing usernames must be backfilled');
+    assert.ok(sql.includes('Username is required'), 'New users without usernames must be rejected');
+  });
+
+  test('new signup sends username metadata', () => {
+    const code = read('app/auth/sign-up/page.js');
+    assert.ok(code.includes('username: form.username'), 'Signup must send username metadata');
+    assert.ok(code.includes('id="username"') && code.includes('required'), 'Signup username field must be required');
+  });
+
+  test('demo generator assigns usernames and featured participation', () => {
+    const code = read('scripts/generate-demo-data.mjs');
+    assert.ok(code.includes('demoUsername'), 'Demo users must receive usernames');
+    assert.ok(code.includes('smbhogre@gmail.com'), 'Featured account participation must be configured');
+    assert.ok(code.includes('event_rsvps'), 'Featured account must be assigned event RSVPs');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
