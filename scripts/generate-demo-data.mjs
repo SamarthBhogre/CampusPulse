@@ -1,5 +1,5 @@
 // Generate a realistic Campus Pulse dataset.
-// Usage: node scripts/generate-demo-data.mjs [--users 250] [--clubs 25] [--events 400]
+// Usage: node scripts/generate-demo-data.mjs [--users 250] [--clubs 25] [--events 400] [--seed 20261008]
 // Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.
 
 import fs from 'node:fs';
@@ -28,13 +28,16 @@ function numberArg(name, fallback, min, max) {
   return value;
 }
 const counts = { users: numberArg('users', 100, 1, 2000), clubs: numberArg('clubs', 15, 1, 100), events: numberArg('events', 120, 1, 2000) };
+const seedIndex = args.indexOf('--seed');
+const initialSeed = seedIndex >= 0 ? Number(args[seedIndex + 1]) : 0xCA1F05E;
+if (!Number.isInteger(initialSeed) || initialSeed < 0 || initialSeed > 0xFFFFFFFF) throw new Error('--seed must be an integer between 0 and 4294967295');
 const password = process.env.DEMO_USER_PASSWORD || 'CampusDemo123!';
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-let seed = 0xCA1F05E;
+let seed = initialSeed >>> 0;
 function random() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; }
 function pick(items) { return items[Math.floor(random() * items.length)]; }
 function sample(items, count) { return [...items].sort(() => random() - 0.5).slice(0, Math.min(count, items.length)); }

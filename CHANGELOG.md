@@ -25,6 +25,15 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.5] — 2026-10-08 — Demo Data Migration Safety
+
+- Added a seed option to the demo-data generator so fresh environments can
+  produce different deterministic datasets.
+- Preserved `smbhogre@gmail.com` as a student/member when assigning demo club
+  manager records.
+
+---
+
 ## [2.1.4] — 2026-10-05 — Mumbai Function Region
 
 - Configured Vercel Functions to run in Mumbai (`bom1`) to reduce latency for

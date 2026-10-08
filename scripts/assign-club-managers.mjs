@@ -11,8 +11,8 @@ if (fs.existsSync('.env.local')) for (const line of fs.readFileSync('.env.local'
 }
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const targetEmails = [
-  { email: 'smbhogre@gmail.com', count: 2 },
-  { email: 'd24dce154@charusat.edu.in', count: 4 },
+  { email: 'smbhogre@gmail.com', count: 2, role: 'student', organizer_request_status: 'none' },
+  { email: 'd24dce154@charusat.edu.in', count: 4, role: 'organizer', organizer_request_status: 'approved' },
 ];
 const users = [];
 for (let page = 1; ; page += 1) {
@@ -32,7 +32,7 @@ for (const target of targetEmails) {
   if (!user) throw new Error(`No Auth user found for ${target.email}`);
   const selected = available.splice(0, target.count);
   if (selected.length < target.count) throw new Error(`Only ${selected.length} unassigned demo clubs remain for ${target.email}`);
-  const { error: profileError } = await supabase.from('profiles').update({ role: 'organizer', organizer_request_status: 'approved' }).eq('id', user.id);
+  const { error: profileError } = await supabase.from('profiles').update({ role: target.role, organizer_request_status: target.organizer_request_status }).eq('id', user.id);
   if (profileError) throw profileError;
   const { error: managerError } = await supabase.from('club_managers').upsert(selected.map((club) => ({ club_id: club.id, profile_id: user.id })), { onConflict: 'club_id,profile_id' });
   if (managerError) throw managerError;
