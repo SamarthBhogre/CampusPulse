@@ -19,6 +19,7 @@ const TYPE_LABELS = {
   event_updated: 'Event Updated',
   event_cancelled: 'Event Cancelled',
   event_reminder: 'Event Reminder',
+  organizer_message: 'Organizer Message',
   rsvp_received: 'New RSVP',
   volunteer_received: 'New Volunteer',
 };
@@ -108,6 +109,12 @@ export default function NotificationsPage() {
                   )}
                   {n.payload?.actor_name && (
                     <p className="text-sm mt-1">{n.payload.actor_name} {n.type === 'rsvp_received' ? 'RSVPed' : 'signed up to volunteer'}.</p>
+                  )}
+                  {n.type === 'organizer_message' && n.payload?.message && (
+                    <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm">{n.payload.message}</p>
+                  )}
+                  {n.type === 'organizer_message' && n.payload?.sender_name && (
+                    <p className="text-xs text-muted-foreground mt-2">From {n.payload.sender_name}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}

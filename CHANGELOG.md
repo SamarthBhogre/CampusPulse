@@ -4,6 +4,27 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.5] — 2026-10-08 — Organizer Event Announcements
+
+### ✨ New Features
+
+- Added organizer announcements for event RSVP attendees, volunteers, or both.
+- Added private in-app organizer message notifications with a 1,000-character
+  limit and duplicate-recipient protection.
+- Added organizer message rendering in the notification center.
+
+### 🔒 Security
+
+- Announcement sending requires an approved organizer who owns the event.
+- Recipient selection uses participant IDs and does not expose student emails.
+
+### ✅ Tests
+
+- Added authorization, ownership, validation, deduplication, and UI contract
+  coverage for announcements. The security suite passes 98/98 tests.
+
+---
+
 ## [2.1.4] — 2026-10-05 — Mumbai Function Region
 
 - Configured Vercel Functions to run in Mumbai (`bom1`) to reduce latency for

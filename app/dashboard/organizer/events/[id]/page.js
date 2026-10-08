@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import ImageUpload from '@/components/image-upload';
 import { downloadCSV } from '@/lib/csv';
-import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import ErrorState from '@/components/error-state';
@@ -40,6 +40,8 @@ function ManageEventPage({ params }) {
   const [rsvps, setRsvps] = useState([]);
   const [profiles, setProfiles] = useState({});
   const [newTask, setNewTask] = useState({ title: '', description: '', volunteers_needed: 1 });
+  const [announcement, setAnnouncement] = useState({ message: '', audience: 'both' });
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -153,6 +155,27 @@ function ManageEventPage({ params }) {
     const { error } = await supabase.from('volunteer_signups').delete().eq('id', signupId);
     if (error) toast.error('Could not remove volunteer');
     else { toast.success('Volunteer removed'); load(); }
+  }
+
+  async function sendAnnouncement(e) {
+    e.preventDefault();
+    if (!announcement.message.trim()) return;
+    setSendingAnnouncement(true);
+    try {
+      const res = await fetch(`/api/organizer/events/${id}/announcement`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(announcement),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Could not send announcement');
+      toast.success(body.sent ? `Announcement sent to ${body.sent} participant${body.sent === 1 ? '' : 's'}` : body.message);
+      setAnnouncement({ ...announcement, message: '' });
+    } catch (err) {
+      toast.error(err.message || 'Could not send announcement');
+    } finally {
+      setSendingAnnouncement(false);
+    }
   }
 
   // ── Loading state
@@ -286,6 +309,49 @@ function ManageEventPage({ params }) {
             </div>
             <Button type="submit" disabled={saving} className="gap-2">
               <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" aria-hidden="true" /> Send announcement
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">Notify people who RSVP’d or volunteered for this event.</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={sendAnnouncement} className="space-y-4">
+            <div>
+              <Label htmlFor="announcement-audience">Recipients</Label>
+              <select
+                id="announcement-audience"
+                value={announcement.audience}
+                onChange={(e) => setAnnouncement({ ...announcement, audience: e.target.value })}
+                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="both">RSVP attendees and volunteers</option>
+                <option value="attendees">RSVP attendees only</option>
+                <option value="volunteers">Volunteers only</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="announcement-message">Message</Label>
+              <Textarea
+                id="announcement-message"
+                rows={4}
+                maxLength={1000}
+                value={announcement.message}
+                onChange={(e) => setAnnouncement({ ...announcement, message: e.target.value })}
+                placeholder="Share an arrival update, reminder, or important event information."
+                required
+              />
+              <p className="mt-1 text-xs text-muted-foreground text-right">{announcement.message.length}/1000</p>
+            </div>
+            <Button type="submit" disabled={sendingAnnouncement || !announcement.message.trim()} className="gap-2">
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {sendingAnnouncement ? 'Sending…' : 'Send announcement'}
             </Button>
           </form>
         </CardContent>

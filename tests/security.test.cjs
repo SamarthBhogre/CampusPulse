@@ -97,6 +97,25 @@ describe('Security — Organizer route authorization', () => {
       assert.ok(code.includes('requireOrganizer'), `${route} must call requireOrganizer()`);
     });
   }
+
+  test('announcement route requires organizer authorization and validates ownership', () => {
+    const code = read('app/api/organizer/events/[id]/announcement/route.js');
+    assert.ok(code.includes('requireOrganizer'), 'Announcement route must require an organizer');
+    assert.ok(code.includes(".eq('created_by', auth.user.id)"), 'Announcement route must verify event ownership');
+    assert.ok(code.includes('MAX_MESSAGE_LENGTH'), 'Announcement route must cap message length');
+    assert.ok(code.includes('new Set'), 'Announcement recipients must be deduplicated');
+  });
+});
+
+describe('Organizer announcements', () => {
+  test('announcement notification type and UI rendering exist', () => {
+    const notificationCode = read('lib/notifications/index.js');
+    const pageCode = read('app/notifications/page.js');
+    const organizerCode = read('app/dashboard/organizer/events/[id]/page.js');
+    assert.ok(notificationCode.includes('ORGANIZER_MESSAGE'), 'Missing organizer message notification type');
+    assert.ok(pageCode.includes('organizer_message'), 'Notifications page must render organizer messages');
+    assert.ok(organizerCode.includes('/announcement'), 'Organizer event page must call announcement API');
+  });
 });
 
 describe('Security — Catch-all 404', () => {
