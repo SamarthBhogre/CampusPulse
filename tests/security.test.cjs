@@ -592,6 +592,14 @@ describe('Admin organizer approval response handling', () => {
     assert.ok(code.includes("res.json().catch(() => ({}))"),
       'Organizer approval must not fail when a successful response has no JSON body');
   });
+
+  test('organizer approval performs mutation independently from response read', () => {
+    const api = read('app/api/admin/organizer-requests/[id]/route.js');
+    assert.ok(api.includes('.update(payload)'), 'Organizer approval must update the profile');
+    assert.ok(api.includes('readError'), 'Organizer approval must handle the follow-up profile read');
+    assert.ok(!api.includes('.update(payload)\n    .eq(\'id\', id)\n    .select('),
+      'Organizer approval must not combine update and select in one response-dependent call');
+  });
 });
 
 describe('Admin user suspension response handling', () => {

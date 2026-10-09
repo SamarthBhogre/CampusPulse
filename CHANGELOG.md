@@ -4,6 +4,22 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.10] — 2026-10-09 — Organizer Approval Update Fix
+
+### 🐛 Bug Fixes
+
+- Fixed organizer approval failures caused by combining the database mutation
+  with the returned-row query.
+- Approval now updates the profile first, then loads the updated result
+  separately before sending the success response.
+
+### ✅ Tests
+
+- Added regression coverage for the separated organizer approval mutation and
+  response read.
+
+---
+
 ## [2.1.9] — 2026-10-09 — Account Deletion Fix
 
 ### 🐛 Bug Fixes

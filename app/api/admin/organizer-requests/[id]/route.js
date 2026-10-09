@@ -28,16 +28,28 @@ export async function PATCH(request, { params }) {
     ? { role: 'organizer', organizer_request_status: 'approved', organizer_rejection_reason: null }
     : { role: 'student', organizer_request_status: 'rejected', organizer_rejection_reason: String(body.rejection_reason || '').trim() || 'The application did not meet the current organizer requirements.' };
 
-  const { data, error } = await auth.admin
+  const { error } = await auth.admin
     .from('profiles')
     .update(payload)
-    .eq('id', id)
-    .select('id, email, full_name, role, organizer_request_status, organizer_rejection_reason, organizer_requested_at')
-    .single();
+    .eq('id', id);
 
   if (error) {
     logger.error('Organizer request update failed', error, { targetId: id, action });
     return NextResponse.json({ error: 'Could not update organizer request' }, { status: 500 });
+  }
+
+  // Read the updated row separately. Combining update + select can fail on
+  // deployments where the response representation is restricted even though
+  // the mutation itself is allowed.
+  const { data, error: readError } = await auth.admin
+    .from('profiles')
+    .select('id, email, full_name, role, organizer_request_status, organizer_rejection_reason, organizer_requested_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (readError || !data) {
+    logger.error('Organizer request updated but could not be read', readError, { targetId: id, action });
+    return NextResponse.json({ error: 'Organizer request was updated, but the result could not be loaded' }, { status: 500 });
   }
 
   // Write audit log (non-blocking)
