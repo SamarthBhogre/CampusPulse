@@ -39,15 +39,19 @@ export async function DELETE(request) {
       return NextResponse.json({ ok: true, permanent: true });
     }
 
-    // 1. Anonymize profile — preserve ID for referential integrity
-    await admin.from('profiles').update({
+    // 1. Anonymize profile — preserve ID for referential integrity. Usernames
+    // are required, so use a unique non-identifying placeholder instead of
+    // setting username to null.
+    const deletedUsername = `deleted_${user.id.replace(/-/g, '').slice(0, 22)}`;
+    const { error: anonymizeError } = await admin.from('profiles').update({
       full_name: '[Deleted User]',
-      username: null,
+      username: deletedUsername,
       email: `deleted_${user.id}@deleted.invalid`,
       avatar_url: null,
       organizer_request_status: 'none',
       is_suspended: false,
     }).eq('id', user.id);
+    if (anonymizeError) throw anonymizeError;
 
     // 2. Remove club memberships (these are personal, not institutional)
     await admin.from('club_members').delete().eq('profile_id', user.id);

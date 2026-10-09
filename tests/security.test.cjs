@@ -450,6 +450,13 @@ describe('Settings page', () => {
       'Account deletion must require explicit confirmation');
   });
 
+  test('delete account preserves required username while anonymizing', () => {
+    const code = read('app/api/settings/delete-account/route.js');
+    assert.ok(code.includes('deletedUsername'), 'Deletion must create an anonymized username');
+    assert.ok(!code.includes('username: null'), 'Deletion must not clear the required username');
+    assert.ok(code.includes('anonymizeError'), 'Deletion must handle profile anonymization errors');
+  });
+
   test('settings profile API calls update_own_profile RPC (not direct table update)', () => {
     const code = read('app/api/settings/profile/route.js');
     assert.ok(code.includes('update_own_profile') || code.includes('rpc('),
@@ -583,6 +590,18 @@ describe('Admin organizer approval response handling', () => {
     const code = read('app/admin/dashboard/organizers/page.js');
     assert.ok(code.includes("res.json().catch(() => ({}))"),
       'Organizer approval must not fail when a successful response has no JSON body');
+  });
+});
+
+describe('Admin user suspension response handling', () => {
+  test('user update performs mutation independently and returns JSON success', () => {
+    const api = read('app/api/admin/users/[id]/route.js');
+    const page = read('app/admin/dashboard/users/page.js');
+    assert.ok(api.includes('.from(\'profiles\')') && api.includes('.update(update)'),
+      'User action must update the profiles table');
+    assert.ok(api.includes('ok: true'), 'User action must return a JSON success response');
+    assert.ok(page.includes("res.json().catch(() => ({}))"),
+      'User action UI must tolerate an empty or non-JSON response');
   });
 });
 

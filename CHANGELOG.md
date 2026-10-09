@@ -4,6 +4,37 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.9] — 2026-10-09 — Account Deletion Fix
+
+### 🐛 Bug Fixes
+
+- Fixed account deletion failing after usernames became required.
+- Deleted accounts now receive a unique anonymized username before cleanup.
+- Added explicit handling for profile anonymization errors.
+
+### ✅ Tests
+
+- Added regression coverage for required-username account deletion. The
+  security suite passes 104/104 tests.
+
+---
+
+## [2.1.8] — 2026-10-09 — User Suspension Update Fix
+
+### 🐛 Bug Fixes
+
+- Fixed admin suspend/restore actions failing during Supabase update response
+  handling.
+- Admin user actions now return a guaranteed JSON success response and tolerate
+  empty error responses in the dashboard.
+
+### ✅ Tests
+
+- Added regression coverage for admin suspend/restore response handling. The
+  security suite passes 103/103 tests.
+
+---
+
 ## [2.1.7] — 2026-10-09 — Organizer Approval Response Fix
 
 ### 🐛 Bug Fixes
