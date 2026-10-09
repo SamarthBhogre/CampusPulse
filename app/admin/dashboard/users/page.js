@@ -67,8 +67,8 @@ export default function UsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Could not update user');
       toast.success('User updated');
       await load();
     } catch (err) {
