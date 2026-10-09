@@ -4,6 +4,16 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.1.7] — 2026-10-09 — Organizer Approval Response Fix
+
+### 🐛 Bug Fixes
+
+- Fixed organizer approval showing `Unexpected end of JSON input` after a
+  successful approval when the response body was empty or non-JSON.
+- Added regression coverage for tolerant admin approval response handling.
+
+---
+
 ## [2.1.6] — 2026-10-08 — Required Usernames & Demo Participation
 
 ### ✨ New Features

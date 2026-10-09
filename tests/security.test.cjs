@@ -578,6 +578,14 @@ describe('Admin dashboard pages', () => {
   }
 });
 
+describe('Admin organizer approval response handling', () => {
+  test('approval UI tolerates an empty or non-JSON success response', () => {
+    const code = read('app/admin/dashboard/organizers/page.js');
+    assert.ok(code.includes("res.json().catch(() => ({}))"),
+      'Organizer approval must not fail when a successful response has no JSON body');
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // npm test command
 // ─────────────────────────────────────────────────────────────────────────────

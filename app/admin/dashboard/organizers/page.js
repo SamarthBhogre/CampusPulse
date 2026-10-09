@@ -52,7 +52,10 @@ export default function OrganizersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, rejection_reason }),
       });
-      const body = await res.json();
+      // Some deployments/proxies can return an empty success body even though
+      // the PATCH completed. Do not turn a successful approval into a client
+      // error just because there is no JSON to parse.
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `Could not ${action}`);
       toast.success(action === 'approve' ? 'Organizer approved' : 'Request rejected');
       await load();
