@@ -21,6 +21,14 @@ export async function POST(request, { params }) {
   const { data, error } = await supabase.rpc('rsvp_to_event', { p_event_id: id });
 
   if (error) {
+    // Capacity errors come from the enforce_event_rsvp_capacity trigger (migration 020)
+    if (error.message?.includes('event is full') || error.message?.includes('Registrations are closed')) {
+      const userMsg = error.message.includes('event is full')
+        ? 'This event is full. Registrations are closed.'
+        : 'Registrations are closed for this event.';
+      return NextResponse.json({ error: userMsg }, { status: 409 });
+    }
+
     // Translate database-level errors into user-friendly messages
     const userMsg = error.message?.includes('club member')
       ? 'You must be a club member to RSVP for this event.'

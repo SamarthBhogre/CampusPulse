@@ -25,6 +25,7 @@ export async function POST(request) {
     club_id: parsed.data.club_id ?? null,
     starts_at: parsed.data.starts_at.toISOString(),
     ends_at: parsed.data.ends_at?.toISOString() ?? null,
+    max_attendees: parsed.data.max_attendees ?? null,
     created_by: auth.user.id,
   };
 

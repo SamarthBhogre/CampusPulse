@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import ImageUpload from '@/components/image-upload';
 import { downloadCSV } from '@/lib/csv';
-import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Users, Heart, Download, Send, Ticket } from 'lucide-react';
+import { getRegistrationState } from '@/lib/event-registration';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import ErrorState from '@/components/error-state';
@@ -42,6 +43,7 @@ function ManageEventPage({ params }) {
   const [newTask, setNewTask] = useState({ title: '', description: '', volunteers_needed: 1 });
   const [announcement, setAnnouncement] = useState({ message: '', audience: 'both' });
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
+  const [registrationBusy, setRegistrationBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,7 +61,7 @@ function ManageEventPage({ params }) {
         throw new Error(body.error || 'Could not load event');
       }
       const { event: ev } = await evRes.json();
-      setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: toLocal(ev.ends_at) });
+      setEvent({ ...ev, starts_at_local: toLocal(ev.starts_at), ends_at_local: toLocal(ev.ends_at), max_attendees_input: ev.max_attendees ?? '' });
 
       const [{ data: ts }, { data: sus }, { data: rs }] = await Promise.all([
         supabase.from('tasks').select('*').eq('event_id', id).order('created_at'),
@@ -105,6 +107,7 @@ function ManageEventPage({ params }) {
         club_id: event.club_id || null,
         starts_at: new Date(event.starts_at_local).toISOString(),
         ends_at: event.ends_at_local ? new Date(event.ends_at_local).toISOString() : null,
+        max_attendees: event.max_attendees_input === '' ? null : Number(event.max_attendees_input),
       };
       const res = await fetch(`/api/organizer/events/${id}`, {
         method: 'PATCH',
@@ -113,11 +116,31 @@ function ManageEventPage({ params }) {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Could not save event');
+      setEvent((current) => ({ ...current, max_attendees: payload.max_attendees }));
       toast.success('Event updated');
     } catch (err) {
       toast.error(err.message || 'Could not save event');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function setRegistrationMode(mode) {
+    setRegistrationBusy(true);
+    try {
+      const res = await fetch(`/api/organizer/events/${id}/registration`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registration_mode: mode }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Could not update registrations');
+      setEvent((current) => ({ ...current, registration_mode: body.event.registration_mode }));
+      toast.success(mode === 'closed' ? 'Registrations closed' : mode === 'open' ? 'Registrations reopened' : 'Registrations follow the attendee limit');
+    } catch (err) {
+      toast.error(err.message || 'Could not update registrations');
+    } finally {
+      setRegistrationBusy(false);
     }
   }
 
@@ -291,6 +314,11 @@ function ManageEventPage({ params }) {
               </div>
             </div>
             <div>
+              <Label htmlFor="ev-max-attendees">Attendee limit</Label>
+              <Input id="ev-max-attendees" type="number" min={1} max={100000} value={event.max_attendees_input} onChange={(e) => setEvent({ ...event, max_attendees_input: e.target.value })} placeholder="Unlimited" className="w-40" />
+              <p className="mt-1 text-xs text-muted-foreground">Leave blank for no limit. Registrations close automatically once it is reached.</p>
+            </div>
+            <div>
               <Label>Cover image</Label>
               <ImageUpload value={event.cover_image} onChange={(url) => setEvent({ ...event, cover_image: url })} />
             </div>
@@ -313,6 +341,8 @@ function ManageEventPage({ params }) {
           </form>
         </CardContent>
       </Card>
+
+      <RegistrationCard event={event} rsvpCount={rsvps.length} busy={registrationBusy} onChange={setRegistrationMode} />
 
       <Card className="mb-6">
         <CardHeader>
@@ -454,6 +484,47 @@ function ManageEventPage({ params }) {
         </div>
       )}
     </div>
+  );
+}
+
+function RegistrationCard({ event, rsvpCount, busy, onChange }) {
+  const registration = getRegistrationState(event, rsvpCount);
+  const status = registration.mode === 'closed'
+    ? 'Closed by you. New RSVPs are blocked.'
+    : registration.mode === 'open'
+    ? registration.isFull
+      ? 'Reopened by you. Accepting RSVPs beyond the attendee limit.'
+      : 'Opened by you. Accepting RSVPs regardless of the attendee limit.'
+    : registration.isFull
+    ? 'Closed automatically. The attendee limit has been reached.'
+    : registration.max != null
+    ? `Open. ${registration.spotsLeft} spot${registration.spotsLeft === 1 ? '' : 's'} left; closes automatically when full.`
+    : 'Open. No attendee limit set.';
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="flex items-center gap-2"><Ticket className="h-5 w-5" aria-hidden="true" /> Registrations</span>
+          <Badge variant={registration.isOpen ? 'default' : 'secondary'}>{registration.isOpen ? 'Open' : 'Closed'}</Badge>
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {registration.max != null ? `${registration.count} / ${registration.max} attending. ` : `${registration.count} attending. `}{status}
+        </p>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        {registration.isOpen ? (
+          <Button variant="outline" disabled={busy} onClick={() => onChange('closed')}>Close registrations</Button>
+        ) : (
+          <Button disabled={busy} onClick={() => onChange('open')}>Reopen registrations</Button>
+        )}
+        {registration.mode !== 'auto' && (
+          <Button variant="ghost" disabled={busy} onClick={() => onChange('auto')}>
+            {registration.max != null ? 'Follow attendee limit' : 'Reset to default'}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

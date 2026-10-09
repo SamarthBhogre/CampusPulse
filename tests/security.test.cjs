@@ -639,3 +639,33 @@ describe('Validation schemas', () => {
     assert.ok(exists('lib/validation/tasks.js'), 'Task validation schema must exist');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendee capacity
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Attendee capacity', () => {
+  test('migration 020 enforces the RSVP cap in a locking trigger', () => {
+    const sql = read('supabase/migrations/020_event_attendee_capacity.sql');
+    assert.match(sql, /add column if not exists max_attendees/);
+    assert.match(sql, /registration_mode in \('auto', 'open', 'closed'\)/);
+    assert.match(sql, /before insert on public\.event_rsvps/);
+    assert.match(sql, /for update/, 'Capacity check must lock the event row to prevent overbooking');
+  });
+
+  test('event validation accepts an optional attendee limit', () => {
+    const code = read('lib/validation/events.js');
+    assert.ok(code.includes('max_attendees'), 'eventInputSchema must accept max_attendees');
+    assert.ok(code.includes('registrationModeSchema'), 'Registration mode schema must exist');
+  });
+
+  test('registration endpoint is organizer-only and scoped to owned events', () => {
+    const code = read('app/api/organizer/events/[id]/registration/route.js');
+    assert.ok(code.includes('requireOrganizer()'), 'Registration route must use requireOrganizer()');
+    assert.ok(code.includes(".eq('created_by', auth.user.id)"), 'Registration route must check ownership');
+  });
+
+  test('RSVP route reports full or closed events as conflicts', () => {
+    const code = read('app/api/events/[id]/rsvp/route.js');
+    assert.ok(code.includes('status: 409'), 'Full/closed RSVP attempts must return 409');
+  });
+});

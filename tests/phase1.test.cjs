@@ -33,8 +33,10 @@ test('query hardening avoids a redundant clubs name index', () => {
 
 test('event discovery uses bounded database queries and aggregate capacity data', () => {
   const page = read('app/events/page.js');
-  assert.match(page, /range\(page \* PAGE_SIZE/);
-  assert.match(page, /get_event_capacity_summary/);
-  assert.match(page, /ilike/);
+  // Paging, search, and capacity aggregation happen inside the get_events_page RPC.
+  assert.match(page, /rpc\('get_events_page'/);
+  assert.match(page, /p_page_size:\s*PAGE_SIZE/);
+  assert.match(page, /p_search:/);
+  assert.match(page, /capacity=\{ev\.capacity\}/);
   assert.doesNotMatch(page, /volunteer_signups\(id\)/);
 });

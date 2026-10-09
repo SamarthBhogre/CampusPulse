@@ -13,6 +13,7 @@ import ErrorState from '@/components/error-state';
 import EmptyState from '@/components/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { getRegistrationState } from '@/lib/event-registration';
 
 export default function EventDetailPage({ params }) {
   const { id } = use(params);
@@ -35,7 +36,7 @@ export default function EventDetailPage({ params }) {
       setUser(currentUser);
       const { data: ev, error: eventError } = await supabase
         .from('events')
-        .select('id, club_id, title, description, location, starts_at, ends_at, cover_image, visibility, created_by, status, clubs(name)')
+        .select('id, club_id, title, description, location, starts_at, ends_at, cover_image, visibility, created_by, status, max_attendees, registration_mode, clubs(name)')
         .eq('id', id)
         .maybeSingle();
       if (eventError) throw eventError;
@@ -81,6 +82,8 @@ export default function EventDetailPage({ params }) {
 
   const rsvpSummary = rsvps[0];
   const myRsvp = user && rsvpSummary?.id ? rsvpSummary : null;
+  const registration = getRegistrationState(event, rsvpSummary?.count);
+  const registrationBlocked = !myRsvp && !registration.isOpen;
 
   async function toggleRsvp() {
     if (!user) { toast.error('Please sign in to RSVP'); router.push('/auth/sign-in'); return; }
@@ -232,14 +235,23 @@ export default function EventDetailPage({ params }) {
         )}
         <span className="flex items-center gap-2">
           <Heart className="h-4 w-4 text-primary" aria-hidden="true" />
-          {rsvpSummary?.count || 0} attending
+          {registration.max != null ? `${registration.count} / ${registration.max} attending` : `${registration.count} attending`}
         </span>
+        {registration.isOpen && registration.spotsLeft != null && registration.mode === 'auto' && (
+          <span className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" aria-hidden="true" />
+            {registration.spotsLeft} spot{registration.spotsLeft === 1 ? '' : 's'} left
+          </span>
+        )}
+        {!registration.isOpen && (
+          <Badge variant="secondary">{registration.mode === 'closed' ? 'Registrations closed' : 'Event full'}</Badge>
+        )}
       </div>
 
       <div className="mb-8 flex flex-wrap gap-3">
-        <Button onClick={toggleRsvp} disabled={rsvpBusy || event.status === 'cancelled'} variant={myRsvp ? 'secondary' : 'default'} size="lg" className="gap-2">
+        <Button onClick={toggleRsvp} disabled={rsvpBusy || event.status === 'cancelled' || registrationBlocked} variant={myRsvp || registrationBlocked ? 'secondary' : 'default'} size="lg" className="gap-2">
           <Heart className={cn('h-4 w-4', myRsvp && 'fill-current')} aria-hidden="true" />
-          {rsvpBusy ? 'Saving…' : myRsvp ? "You're attending" : "I'll be there"}
+          {rsvpBusy ? 'Saving…' : myRsvp ? "You're attending" : registrationBlocked ? (registration.mode === 'closed' ? 'Registrations closed' : 'Event full') : "I'll be there"}
         </Button>
         <a href={`/api/events/${id}/calendar`} download={`event-${id}.ics`}>
           <Button variant="outline" size="lg" className="gap-2">

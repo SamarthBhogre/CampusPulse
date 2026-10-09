@@ -21,7 +21,7 @@ function NewEventPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', location: '', starts_at: '', ends_at: '',
-    cover_image: '', club_id: '', visibility: 'public',
+    cover_image: '', club_id: '', visibility: 'public', max_attendees: '',
   });
 
   useEffect(() => {
@@ -41,6 +41,7 @@ function NewEventPage() {
         cover_image: form.cover_image || null,
         club_id: form.club_id || null,
         visibility: form.visibility,
+        max_attendees: form.max_attendees === '' ? null : Number(form.max_attendees),
       };
       const res = await fetch('/api/organizer/events', {
         method: 'POST',
@@ -100,6 +101,11 @@ function NewEventPage() {
                 <Label htmlFor="end">Ends</Label>
                 <Input id="end" type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="max-attendees">Attendee limit</Label>
+              <Input id="max-attendees" type="number" min={1} max={100000} value={form.max_attendees} onChange={(e) => setForm({ ...form, max_attendees: e.target.value })} placeholder="Unlimited" className="w-40" />
+              <p className="text-xs text-muted-foreground">Leave blank for no limit. Registrations close automatically once the limit is reached.</p>
             </div>
             <div className="space-y-2">
               <Label>Visibility</Label>

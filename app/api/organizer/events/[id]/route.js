@@ -67,6 +67,7 @@ export async function PATCH(request, { params }) {
     ends_at: parsed.data.ends_at?.toISOString() ?? null,
     updated_at: new Date().toISOString(),
   };
+  if (parsed.data.max_attendees !== undefined) payload.max_attendees = parsed.data.max_attendees;
 
   const { data, error } = await auth.admin
     .from('events')

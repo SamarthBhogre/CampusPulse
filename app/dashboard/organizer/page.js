@@ -43,7 +43,7 @@ export default function OrganizerDashboard() {
       if (profile.role !== 'organizer') { router.replace('/dashboard'); return; }
       const { data: ev, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, description, location, starts_at, cover_image, visibility, clubs(name), tasks(count), volunteer_signups(count), event_rsvps(count)')
+        .select('id, title, description, location, starts_at, cover_image, visibility, max_attendees, clubs(name), tasks(count), volunteer_signups(count), event_rsvps(count)')
         .eq('created_by', user.id)
         .order('starts_at')
         .limit(100);
@@ -150,7 +150,7 @@ export default function OrganizerDashboard() {
                         <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{format(new Date(ev.starts_at), 'MMM d, yyyy h:mm a')}</span>
                         {ev.location && <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{ev.location}</span>}
                         <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{ev.volunteer_count} volunteers</span>
-                        <span className="flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-rose-500" />{ev.rsvp_count} attending</span>
+                        <span className="flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-rose-500" />{ev.max_attendees != null ? `${ev.rsvp_count} / ${ev.max_attendees}` : ev.rsvp_count} attending</span>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-2 sm:flex-col sm:justify-center">

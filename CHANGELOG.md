@@ -4,6 +4,40 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.2.0] — 2026-10-09 — Event Attendee Capacity
+
+### ✨ Features
+
+- Organizers can set an optional attendee limit when creating or editing an
+  event (blank = unlimited).
+- Registrations close automatically once the limit is reached and reopen if an
+  attendee cancels.
+- New "Registrations" card on the manage-event page lets organizers close
+  registrations manually, reopen them past the limit, or return to following
+  the limit (`PATCH /api/organizer/events/[id]/registration`).
+- Event pages show "X / Y attending" and spots left, and disable the RSVP
+  button with "Event full" / "Registrations closed" when closed. Existing
+  attendees can still cancel.
+- Organizer dashboard shows RSVP counts against the limit.
+
+### 🔒 Database
+
+- Migration `020_event_attendee_capacity.sql` adds `events.max_attendees` and
+  `events.registration_mode` (`auto` | `open` | `closed`), plus a
+  `BEFORE INSERT` trigger on `event_rsvps` that locks the event row to prevent
+  concurrent overbooking. **Apply before deploying** — event pages read the
+  new columns.
+- The RSVP API returns `409` with a clear message for full or closed events.
+
+### ✅ Tests
+
+- Added attendee capacity coverage to the security suite.
+- Updated the stale Phase 1 event discovery test to check the
+  `get_events_page` RPC instead of the removed client-side queries. All 113
+  tests pass.
+
+---
+
 ## [2.1.10] — 2026-10-09 — Organizer Approval Update Fix
 
 ### 🐛 Bug Fixes
