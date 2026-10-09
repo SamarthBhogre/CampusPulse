@@ -24,7 +24,7 @@ function SignUpPage() {
     setLoading(true);
     try {
       const nextPath = form.account_type === 'organizer' ? '/organizer/status' : '/dashboard';
-      const emailRedirectTo = getAuthRedirectUrl(`/auth/confirm?next=${encodeURIComponent(nextPath)}`);
+      const emailRedirectTo = getAuthRedirectUrl(nextPath);
       const { data, error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
