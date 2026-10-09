@@ -9,8 +9,9 @@ All notable changes to CampusPulse are documented here.
 ### 🐛 Bug Fixes
 
 - Fixed account deletion failing after usernames became required.
-- Deleted accounts now receive a unique anonymized username before cleanup.
-- Added explicit handling for profile anonymization errors.
+- Auth deletion now happens before any local cleanup, preventing partially
+  anonymized accounts when the Auth operation fails.
+- Explicitly requests permanent Supabase Auth deletion.
 
 ### ✅ Tests
 

@@ -5,8 +5,10 @@ import { logger } from '@/lib/logger';
 
 /**
  * DELETE /api/settings/delete-account
- * Soft-deletes the user: anonymizes profile, signs out, leaves institutional records.
- * Does NOT cascade-delete events/RSVPs/attendance to preserve institutional integrity.
+ * Permanently deletes the authenticated user through Supabase Auth. The
+ * profile and account-owned records then follow the database foreign-key
+ * cascade. Auth deletion is intentionally performed before any local cleanup
+ * so a failed deletion cannot leave a partially anonymized account.
  */
 export async function DELETE(request) {
   const supabase = await getSupabaseServerClient();
@@ -26,52 +28,16 @@ export async function DELETE(request) {
       if (!profile || (profile.organizer_request_status !== 'rejected' && profile.role !== 'student')) {
         return NextResponse.json({ error: 'Permanent deletion is only available for rejected organizer applications.' }, { status: 403 });
       }
-      // Explicitly remove user-owned application and participation data first;
-      // Auth deletion then cascades the profile and any owned events.
-      await admin.from('club_creation_requests').delete().eq('requester_id', user.id);
-      await admin.from('club_managers').delete().eq('profile_id', user.id);
-      await admin.from('club_members').delete().eq('profile_id', user.id);
-      await admin.from('event_rsvps').delete().eq('profile_id', user.id);
-      await admin.from('volunteer_signups').delete().eq('profile_id', user.id);
-      const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
+      const { error: deleteError } = await admin.auth.admin.deleteUser(user.id, false);
       if (deleteError) throw deleteError;
       logger.info('Rejected applicant permanently deleted', { userId: user.id });
       return NextResponse.json({ ok: true, permanent: true });
     }
 
-    // 1. Anonymize profile — preserve ID for referential integrity. Usernames
-    // are required, so use a unique non-identifying placeholder instead of
-    // setting username to null.
-    const deletedUsername = `deleted_${user.id.replace(/-/g, '').slice(0, 22)}`;
-    const { error: anonymizeError } = await admin.from('profiles').update({
-      full_name: '[Deleted User]',
-      username: deletedUsername,
-      email: `deleted_${user.id}@deleted.invalid`,
-      avatar_url: null,
-      organizer_request_status: 'none',
-      is_suspended: false,
-    }).eq('id', user.id);
-    if (anonymizeError) throw anonymizeError;
-
-    // 2. Remove club memberships (these are personal, not institutional)
-    await admin.from('club_members').delete().eq('profile_id', user.id);
-
-    // 3. Remove notification queue entries for this user
-    await admin.from('notification_queue').delete().eq('recipient_id', user.id);
-
-    // 4. Remove notification preferences
-    await admin.from('notification_preferences').delete().eq('profile_id', user.id);
-
-    // 5. Write audit log entry
-    await admin.rpc('write_audit_log', {
-      p_action: 'account_deleted',
-      p_target_type: 'profile',
-      p_target_id: user.id,
-      p_metadata: { self_deleted: true },
-    }).catch(() => {});
-
-    // 6. Sign out via Supabase Auth admin — invalidate all sessions
-    await admin.auth.admin.deleteUser(user.id);
+    // Delete Auth first. The profiles foreign key cascades the account data;
+    // do not mutate the profile before this succeeds.
+    const { error: deleteError } = await admin.auth.admin.deleteUser(user.id, false);
+    if (deleteError) throw deleteError;
 
     logger.info('Account self-deleted', { userId: user.id });
     return NextResponse.json({ ok: true });

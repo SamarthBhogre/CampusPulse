@@ -450,11 +450,12 @@ describe('Settings page', () => {
       'Account deletion must require explicit confirmation');
   });
 
-  test('delete account preserves required username while anonymizing', () => {
+  test('delete account attempts Auth deletion before local mutation', () => {
     const code = read('app/api/settings/delete-account/route.js');
-    assert.ok(code.includes('deletedUsername'), 'Deletion must create an anonymized username');
+    assert.ok(code.includes('deleteUser(user.id, false)'), 'Deletion must explicitly perform permanent Auth deletion');
+    assert.ok(code.indexOf('deleteUser(user.id, false)') < code.indexOf('logger.info'),
+      'Deletion must complete Auth removal before reporting success');
     assert.ok(!code.includes('username: null'), 'Deletion must not clear the required username');
-    assert.ok(code.includes('anonymizeError'), 'Deletion must handle profile anonymization errors');
   });
 
   test('settings profile API calls update_own_profile RPC (not direct table update)', () => {
