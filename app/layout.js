@@ -2,6 +2,7 @@ import './globals.css';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Providers } from './providers';
 import NavBar from '@/components/nav-bar';
+import AssistantWidget from '@/components/assistant-widget';
 
 const jakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
           <NavBar />
           {/* pt = navbar h-12 + py-2.5 top + py-2.5 bottom = 48+10+10 = 68px */}
           <main className="pt-[68px]">{children}</main>
+          <AssistantWidget />
         </Providers>
       </body>
     </html>

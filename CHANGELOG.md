@@ -4,6 +4,39 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.4.0] — 2026-10-10 — In-App AI Assistant
+
+### ✨ Features
+
+- Added a chat assistant to the website for signed-in users. It uses a
+  floating button on every page except the auth pages, and is powered by
+  Gemini (`gemini-3.5-flash` by default, free API tier).
+- The assistant uses the same tools as the MCP server, run in-process with
+  the user's own session. Students can find events, register, volunteer, and
+  manage their profile. Organizers can also manage their events.
+- Cancellations, event updates, announcements, and moderation appear as a
+  preview card with **Confirm** / **Cancel** buttons. The model can never
+  approve these itself; only the user's click runs them.
+
+### 🔒 Security
+
+- `POST /api/assistant` verifies the Supabase session cookie. Tools run with
+  the user's RLS-scoped client and the same role gating as `/api/mcp`.
+- The Gemini API key stays on the server.
+
+### ✅ Tests
+
+- Added 9 assistant tests with Gemini mocked: tool loop, `confirm` stripped
+  from model calls, per-role tool lists, rate-limit handling, and
+  confirm-only-confirmable actions.
+
+### ⚙️ Setup
+
+- Set `GEMINI_API_KEY` (free from Google AI Studio) in `.env.local` and in
+  Vercel. `GEMINI_MODEL` is optional.
+
+---
+
 ## [2.3.0] — 2026-10-09 — MCP Server
 
 ### ✨ Features
