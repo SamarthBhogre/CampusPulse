@@ -4,13 +4,32 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.4.1] — 2026-10-10 — Assistant Timeout Fix
+
+### 🐛 Bug Fixes
+
+- Fixed the assistant hitting Vercel's 60s function timeout. Each Gemini call
+  now has a 25s limit and each turn a 45s budget. Slow or overloaded
+  responses return a friendly "try again" message.
+- Switched the default model to `gemini-3.1-flash-lite`. A real turn takes
+  about 4s; `gemini-3.5-flash` was returning 503 "high demand" errors.
+- Replies are plain text with • bullets, because the chat window doesn't
+  render Markdown.
+
+### ✅ Tests
+
+- Added a test that a Gemini call that never answers fails with a 504
+  within the turn budget.
+
+---
+
 ## [2.4.0] — 2026-10-10 — In-App AI Assistant
 
 ### ✨ Features
 
 - Added a chat assistant to the website for signed-in users. It uses a
   floating button on every page except the auth pages, and is powered by
-  Gemini (`gemini-3.5-flash` by default, free API tier).
+  Gemini (free API tier).
 - The assistant uses the same tools as the MCP server, run in-process with
   the user's own session. Students can find events, register, volunteer, and
   manage their profile. Organizers can also manage their events.

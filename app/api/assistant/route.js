@@ -83,10 +83,13 @@ export async function POST(request) {
   } catch (error) {
     if (error instanceof GeminiError) {
       logger.warn('Assistant Gemini error', { userId: user.id, status: error.status, error: error.message });
-      const message = error.status === 429
+      const message = error.status === 429 || error.status === 503
         ? 'The assistant is getting a lot of requests right now. Please try again in a minute.'
+        : error.status === 504
+        ? 'The assistant took too long to answer. Please try again or ask something simpler.'
         : 'The assistant could not answer right now. Please try again.';
-      return NextResponse.json({ error: message }, { status: error.status === 429 ? 429 : 502 });
+      const status = [429, 503, 504].includes(error.status) ? error.status : 502;
+      return NextResponse.json({ error: message }, { status });
     }
     logger.error('Assistant request failed', error, { userId: user.id });
     return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });

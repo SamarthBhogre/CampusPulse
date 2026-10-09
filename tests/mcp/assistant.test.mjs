@@ -119,6 +119,23 @@ describe('Assistant turns', () => {
   });
 });
 
+describe('Time limits', () => {
+  test('a Gemini call that never answers becomes a 504 instead of hanging the function', async () => {
+    const neverAnswers = (_url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason));
+    });
+    const started = Date.now();
+    await assert.rejects(
+      runAssistantTurn({
+        authInfo: authInfoFor('student'), deps: { userClient: createMockSupabase(), adminClient: createMockSupabase() },
+        message: 'hello', apiKey: 'k', model: 'm', fetchImpl: neverAnswers, budgetMs: 4_000,
+      }),
+      (error) => error instanceof GeminiError && error.status === 504,
+    );
+    assert.ok(Date.now() - started < 6_000, 'gives up within the turn budget');
+  });
+});
+
 describe('Confirming actions', () => {
   test('a confirmed cancellation deletes only the caller\'s registration', async () => {
     const userClient = createMockSupabase((call) => (call.table === 'event_rsvps'
