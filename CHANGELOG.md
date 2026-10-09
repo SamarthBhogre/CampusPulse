@@ -4,6 +4,28 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.2.1] — 2026-10-09 — Full Badge on Event Cards
+
+### ✨ Features
+
+- Event cards on the events page show a **Full** badge when the attendee limit
+  is reached, or **Closed** when the organizer has closed registrations.
+
+### 🔒 Database
+
+- Migration `021_events_page_registration.sql` updates `get_events_page` to
+  return each event's `registration` state (`max_attendees`,
+  `registration_mode`, `rsvp_count`). Existing fields are unchanged.
+  **Apply before deploying** for the badge to appear (cards render normally
+  without it).
+
+### ✅ Tests
+
+- Added coverage for the registration data in `get_events_page` and the
+  event card badge.
+
+---
+
 ## [2.2.0] — 2026-10-09 — Event Attendee Capacity
 
 ### ✨ Features

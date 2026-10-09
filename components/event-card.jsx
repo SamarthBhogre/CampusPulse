@@ -3,11 +3,16 @@ import { Calendar, Clock3, MapPin, Users, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { getRegistrationState } from '@/lib/event-registration';
 
 export default function EventCard({ event, capacity, compact = false }) {
   const needed = Number(capacity?.total_needed || 0);
   const filled = Number(capacity?.total_filled || 0);
   const openSlots = Math.max(0, needed - filled);
+  const registration = event.registration
+    ? getRegistrationState(event.registration, event.registration.rsvp_count)
+    : null;
+  const registrationClosed = registration && !registration.isOpen;
 
   return (
     <Link
@@ -39,11 +44,18 @@ export default function EventCard({ event, capacity, compact = false }) {
                 {event.clubs.name}
               </Badge>
             ) : <span />}
-            {event.visibility === 'club_only' && (
-              <Badge variant="outline" className="gap-1 text-[10px] shrink-0">
-                <Lock className="h-2.5 w-2.5" /> Members
-              </Badge>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {registrationClosed && (
+                <Badge variant="destructive" className="text-[10px]">
+                  {registration.mode === 'closed' ? 'Closed' : 'Full'}
+                </Badge>
+              )}
+              {event.visibility === 'club_only' && (
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <Lock className="h-2.5 w-2.5" /> Members
+                </Badge>
+              )}
+            </div>
           </div>
 
           <h2 className="line-clamp-2 font-semibold leading-snug tracking-tight">

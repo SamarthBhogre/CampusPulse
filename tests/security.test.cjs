@@ -669,3 +669,18 @@ describe('Attendee capacity', () => {
     assert.ok(code.includes('status: 409'), 'Full/closed RSVP attempts must return 409');
   });
 });
+
+describe('Attendee capacity — event discovery', () => {
+  test('migration 021 exposes registration state from get_events_page', () => {
+    const sql = read('supabase/migrations/021_events_page_registration.sql');
+    assert.ok(sql.includes("coalesce(e.status, 'active') = 'active'"), 'Must keep the moderation status filter');
+    assert.ok(sql.includes("'registration', jsonb_build_object("), 'Must return a registration object per event');
+    assert.ok(sql.includes('rsvp_count'), 'Must return the RSVP count');
+  });
+
+  test('event card shows a full/closed badge from registration state', () => {
+    const code = read('components/event-card.jsx');
+    assert.ok(code.includes('getRegistrationState'), 'EventCard must use the shared registration helper');
+    assert.ok(code.includes("'Full'"), 'EventCard must label full events');
+  });
+});
