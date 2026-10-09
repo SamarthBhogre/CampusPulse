@@ -4,6 +4,55 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.3.0] — 2026-10-09 — MCP Server
+
+### ✨ Features
+
+- Added a Model Context Protocol server built on the official TypeScript SDK
+  (`@modelcontextprotocol/sdk@1.26.0`) and `mcp-handler@1.1.0`, using stateless
+  Streamable HTTP on Vercel.
+  - `/api/mcp`: OAuth 2.1 via Supabase Auth; tools follow the user's role.
+  - `/api/mcp/public`: read-only public discovery, no sign-in.
+- 23 tools across event discovery, registration, volunteering, profile,
+  organizer management, and admin moderation. See `docs/MCP.md`.
+- New `/oauth/consent` page for Supabase's OAuth server, and sign-in now
+  supports a safe `?next=` return path.
+
+### 🔒 Security
+
+- Identity comes from the verified bearer token, and role comes from
+  `profiles`. Only OAuth-issued tokens (with a `client_id` claim) are accepted.
+- Student actions run as the user, so RLS, unique constraints, and the
+  capacity triggers enforce access, duplicates, and overbooking.
+- Cancellations, event updates, announcements, and moderation need
+  `confirm: true` and otherwise return a preview without changing anything.
+
+### ♻️ Refactor
+
+- Moved event, task, announcement, participation, profile, and moderation
+  logic into `lib/services/*`, shared by the API routes and the MCP tools.
+  Route behaviour is unchanged.
+
+### 🐛 Bug Fixes
+
+- Fixed admin event moderation, user suspension, and organizer approval
+  returning errors after a successful update. `rpc(...).catch()` throws
+  because Supabase query builders have no `.catch` method.
+
+### ✅ Tests
+
+- Added 31 MCP tests (tool access per role, identity, duplicate/full/RLS
+  failures, confirmation previews, token verification) using the MCP client
+  over an in-memory transport. `npm test` now runs them.
+
+### ⚙️ Setup
+
+- Enable the OAuth 2.1 server in Supabase (Authentication → OAuth Server),
+  set the authorization path to `/oauth/consent`, and enable dynamic client
+  registration. No new environment variables.
+
+---
+
 ## [2.2.1] — 2026-10-09 — Full Badge on Event Cards
 
 ### ✨ Features

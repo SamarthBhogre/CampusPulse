@@ -100,10 +100,11 @@ describe('Security — Organizer route authorization', () => {
 
   test('announcement route requires organizer authorization and validates ownership', () => {
     const code = read('app/api/organizer/events/[id]/announcement/route.js');
+    const service = read('lib/services/announcements.js');
     assert.ok(code.includes('requireOrganizer'), 'Announcement route must require an organizer');
-    assert.ok(code.includes(".eq('created_by', auth.user.id)"), 'Announcement route must verify event ownership');
-    assert.ok(code.includes('MAX_MESSAGE_LENGTH'), 'Announcement route must cap message length');
-    assert.ok(code.includes('new Set'), 'Announcement recipients must be deduplicated');
+    assert.ok(service.includes(".eq('created_by', ctx.user.id)"), 'Announcements must verify event ownership');
+    assert.ok(service.includes('MAX_MESSAGE_LENGTH'), 'Announcements must cap message length');
+    assert.ok(service.includes('new Set'), 'Announcement recipients must be deduplicated');
   });
 });
 

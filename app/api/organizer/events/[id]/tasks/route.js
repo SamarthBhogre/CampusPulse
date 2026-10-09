@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireOrganizer } from '@/lib/organizer-auth';
-import { taskInputSchema } from '@/lib/validation/tasks';
+import { createTask } from '@/lib/services/tasks';
 
 async function ownedEvent(auth, id) {
   const { data, error } = await auth.admin
@@ -21,16 +21,9 @@ export async function POST(request, { params }) {
   const auth = await requireOrganizer();
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id } = await params;
-  const owner = await ownedEvent(auth, id);
-  if (owner.error) return NextResponse.json({ error: owner.error }, { status: owner.status });
-  const parsed = taskInputSchema.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid task details' }, { status: 400 });
-  const { data, error } = await auth.admin.from('tasks').insert({ event_id: id, ...parsed.data }).select('id').single();
-  if (error) {
-    console.error('Organizer task creation failed', error);
-    return NextResponse.json({ error: 'Could not create task' }, { status: 500 });
-  }
-  return NextResponse.json({ task: data }, { status: 201 });
+  const result = await createTask(auth, id, await request.json().catch(() => ({})));
+  if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ task: result.task }, { status: 201 });
 }
 
 export async function DELETE(request, { params }) {

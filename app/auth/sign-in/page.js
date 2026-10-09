@@ -43,7 +43,9 @@ function SignInInner() {
       });
       if (error) throw error;
       toast.success('Welcome back!');
-      router.push('/dashboard');
+      // Only same-origin relative paths, e.g. returning to /oauth/consent.
+      const next = searchParams.get('next');
+      router.push(next?.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/dashboard');
       router.refresh();
     } catch (err) {
       toast.error(authErrorMessage(err, 'Sign-in failed. Please try again.'));

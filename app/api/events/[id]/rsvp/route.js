@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
-import { enqueueNotification, NOTIFICATION_TYPES } from '@/lib/notifications';
+import { notifyRsvpAdded } from '@/lib/services/participation';
 import { logger } from '@/lib/logger';
 
 /**
@@ -41,17 +41,7 @@ export async function POST(request, { params }) {
   }
 
   if (data?.action === 'added') {
-    const admin = getSupabaseAdminClient();
-    const [{ data: event }, { data: actor }] = await Promise.all([
-      admin.from('events').select('title, created_by').eq('id', id).maybeSingle(),
-      admin.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
-    ]);
-    if (event) {
-      void enqueueNotification(user.id, NOTIFICATION_TYPES.RSVP_CONFIRMATION, { event_id: id, event_title: event.title });
-      if (event.created_by && event.created_by !== user.id) {
-        void enqueueNotification(event.created_by, NOTIFICATION_TYPES.RSVP_RECEIVED, { event_id: id, event_title: event.title, actor_name: actor?.full_name || 'A student' });
-      }
-    }
+    await notifyRsvpAdded(getSupabaseAdminClient(), user.id, id);
   }
 
   return NextResponse.json({ result: data });

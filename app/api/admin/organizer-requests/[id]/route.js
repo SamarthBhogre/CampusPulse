@@ -52,15 +52,17 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Organizer request was updated, but the result could not be loaded' }, { status: 500 });
   }
 
-  // Write audit log (non-blocking)
-  auth.admin.rpc('write_audit_log', {
+  // Write audit log. Supabase query builders have no .catch(), so check the
+  // returned error instead; an audit failure must not fail the approval.
+  const { error: auditError } = await auth.admin.rpc('write_audit_log', {
     p_action: action === 'approve' ? 'organizer_approved' : 'organizer_rejected',
     p_target_type: 'profile',
     p_target_id: id,
     p_previous: prevProfile ? { role: prevProfile.role, organizer_request_status: prevProfile.organizer_request_status } : null,
     p_new: payload,
     p_metadata: { email: data.email, full_name: data.full_name },
-  }).catch(() => {});
+  });
+  if (auditError) logger.warn('Audit log write failed', { targetId: id, error: auditError.message });
 
   // Enqueue notification to the applicant (non-blocking)
   enqueueNotification(

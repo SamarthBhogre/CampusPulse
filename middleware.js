@@ -17,6 +17,8 @@ const ORGANIZER_REVIEW_ALLOWED = [
   '/', '/events', '/clubs', '/organizer/status',
   '/auth/sign-in', '/auth/sign-up', '/auth/forgot-password',
   '/auth/update-password', '/auth/callback', '/auth/confirm',
+  // OAuth consent for MCP clients; the MCP server enforces roles itself.
+  '/oauth/consent',
 ];
 
 export async function middleware(request) {
@@ -84,5 +86,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/health).*)'],
+  // api/mcp and .well-known are called by MCP clients with bearer tokens, not cookies.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/health|api/mcp|\\.well-known).*)'],
 };

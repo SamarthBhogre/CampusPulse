@@ -46,14 +46,16 @@ export async function PATCH(request, { params }) {
       .eq('id', id)
       .maybeSingle();
 
-    // Write audit log
-    await auth.admin.rpc('write_audit_log', {
+    // Write audit log. Supabase query builders have no .catch(), so check the
+    // returned error instead; an audit failure must not fail the update.
+    const { error: auditError } = await auth.admin.rpc('write_audit_log', {
       p_action: `user_${auditAction}`,
       p_target_type: 'profile',
       p_target_id: id,
       p_previous: { role: target.role, is_suspended: target.is_suspended },
       p_new: update,
-    }).catch(() => {});
+    });
+    if (auditError) logger.warn('Audit log write failed', { targetId: id, error: auditError.message });
 
     return NextResponse.json({ ok: true, user: updatedUser || { id, ...update } });
   } catch (err) {

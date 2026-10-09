@@ -9,14 +9,16 @@
         "dev:webpack": "cross-env NODE_OPTIONS=--max-old-space-size=2048 next dev --hostname 0.0.0.0 --port 3000",
         "build": "cross-env NODE_OPTIONS=--max-old-space-size=2048 next build",
         "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false next lint",
-        "test": "node --test tests/security.test.cjs",
-        "test:all": "node --test tests/security.test.cjs tests/phase1.test.cjs",
+        "test": "node --test tests/security.test.cjs && node --import ./tests/mcp/register-aliases.mjs --test tests/mcp/mcp-server.test.mjs",
+        "test:all": "node --test tests/security.test.cjs tests/phase1.test.cjs && node --import ./tests/mcp/register-aliases.mjs --test tests/mcp/mcp-server.test.mjs",
         "start": "next start",
         "monitor:memory": "powershell -ExecutionPolicy Bypass -File scripts/monitor-node-memory.ps1",
-        "monitor:memory:summary": "powershell -ExecutionPolicy Bypass -File scripts/summarize-node-memory.ps1"
+        "monitor:memory:summary": "powershell -ExecutionPolicy Bypass -File scripts/summarize-node-memory.ps1",
+        "test:mcp": "node --import ./tests/mcp/register-aliases.mjs --test tests/mcp/mcp-server.test.mjs"
     },
     "dependencies": {
         "@hookform/resolvers": "5.1.1",
+        "@modelcontextprotocol/sdk": "1.26.0",
         "@radix-ui/react-accordion": "1.2.11",
         "@radix-ui/react-alert-dialog": "1.1.14",
         "@radix-ui/react-aspect-ratio": "1.1.7",
@@ -59,6 +61,7 @@
         "input-otp": "1.4.2",
         "lodash": "4.18.1",
         "lucide-react": "0.516.0",
+        "mcp-handler": "1.1.0",
         "mongodb": "6.6.0",
         "next": "15.5.16",
         "next-themes": "0.4.6",
