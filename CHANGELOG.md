@@ -4,6 +4,29 @@ All notable changes to CampusPulse are documented here.
 
 ---
 
+## [2.4.2] — 2026-10-10 — Claude Provider for the Assistant
+
+### ✨ Features
+
+- The in-app assistant can now run on Claude instead of Gemini. Set
+  `ASSISTANT_PROVIDER=claude` and `ANTHROPIC_API_KEY`; remove
+  `ASSISTANT_PROVIDER` to switch back. Gemini stays the default.
+- Defaults to `claude-opus-5-5`; override with `CLAUDE_MODEL`. Server-side
+  refusal fallback is enabled for Opus and Sonnet models.
+- Same tool set, role checks, and Confirm-button flow for both providers.
+- The widget now reads "Powered by AI" so it is accurate for either provider.
+
+### ✅ Tests
+
+- Added 6 Claude tests (tool loop, thinking-block replay, confirm hidden from
+  the model, 529/429 mapping, timeout, history trimming).
+
+### ⚙️ Setup
+
+- New dependency: `@anthropic-ai/sdk`.
+
+---
+
 ## [2.4.1] — 2026-10-10 — Assistant Timeout Fix
 
 ### 🐛 Bug Fixes

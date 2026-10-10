@@ -4,6 +4,7 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { runAssistantTurn, confirmAction, ASSISTANT_LIMITS } from '@/lib/assistant/run';
 import { DEFAULT_GEMINI_MODEL, GeminiError } from '@/lib/assistant/gemini';
+import { DEFAULT_CLAUDE_MODEL } from '@/lib/assistant/claude';
 import { logger } from '@/lib/logger';
 
 export const maxDuration = 60;
@@ -67,7 +68,9 @@ export async function POST(request) {
       return NextResponse.json(result, { status: result.ok ? 200 : 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    // ASSISTANT_PROVIDER=claude switches the assistant to Claude (needs ANTHROPIC_API_KEY).
+    const provider = process.env.ASSISTANT_PROVIDER === 'claude' ? 'claude' : 'gemini';
+    const apiKey = provider === 'claude' ? process.env.ANTHROPIC_API_KEY : process.env.GEMINI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'The assistant is not configured yet.' }, { status: 503 });
 
     const result = await runAssistantTurn({
@@ -77,12 +80,15 @@ export async function POST(request) {
       message: parsed.data.message,
       user: { name: profile?.full_name },
       apiKey,
-      model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      provider,
+      model: provider === 'claude'
+        ? process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL
+        : process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof GeminiError) {
-      logger.warn('Assistant Gemini error', { userId: user.id, status: error.status, error: error.message });
+      logger.warn('Assistant model error', { userId: user.id, status: error.status, error: error.message });
       const message = error.status === 429 || error.status === 503
         ? 'The assistant is getting a lot of requests right now. Please try again in a minute.'
         : error.status === 504

@@ -17,6 +17,7 @@
         "test:mcp": "node --import ./tests/mcp/register-aliases.mjs --test tests/mcp/mcp-server.test.mjs tests/mcp/assistant.test.mjs"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.133.0",
         "@hookform/resolvers": "5.1.1",
         "@modelcontextprotocol/sdk": "1.26.0",
         "@radix-ui/react-accordion": "1.2.11",

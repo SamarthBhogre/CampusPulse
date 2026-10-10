@@ -158,7 +158,7 @@ export default function AssistantWidget() {
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground"><Sparkles className="h-3.5 w-3.5" /></div>
               <div>
                 <p className="text-sm font-semibold leading-tight">Campus assistant</p>
-                <p className="text-[11px] text-muted-foreground">Powered by Gemini</p>
+                <p className="text-[11px] text-muted-foreground">Powered by AI</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
